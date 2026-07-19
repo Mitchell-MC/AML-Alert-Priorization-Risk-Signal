@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "donut_confidence_mix",
+  "position": { "x": 660, "y": 160, "z": 0, "width": 300, "height": 250, "tabOrder": 4 },
+  "visual": {
+    "visualType": "donutChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                  "Property": "highest_confidence_band"
+                }
+              },
+              "queryRef": "WatchlistMatchSummary.highest_confidence_band",
+              "nativeQueryRef": "highest_confidence_band"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                      "Property": "watchlist_entity_id"
+                    }
+                  },
+                  "Function": 3
+                }
+              },
+              "queryRef": "CountNonNull(WatchlistMatchSummary.watchlist_entity_id)",
+              "nativeQueryRef": "Count of watchlist_entity_id"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Confidence Band Mix'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

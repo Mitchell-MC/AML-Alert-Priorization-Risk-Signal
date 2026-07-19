@@ -13,18 +13,28 @@ schema via the Databricks connector (using this workspace's real SQL warehouse e
 and a `_Measures` table with 13 DAX measures covering every KPI in
 `docs/00_business_charter.md`.
 
-**Shell only, needs visual layout**: the report (`AML_Dashboard.Report/`) has 3 correctly
-named, empty pages already wired to the semantic model. None of this project's JSON could be
-validated by actually opening Power BI Desktop, so treat the report shell as
-higher-risk than the semantic model — if Desktop offers to "repair" the report on first
-open, or the pages don't show up, the fallback is: keep the `.SemanticModel` folder (it's
-independent and should be unaffected), and in Desktop use **File → New report** connected to
-this semantic model instead of opening the existing report shell. You lose nothing but the
-empty page shells, which take a minute to recreate.
+**Built, but unverified in Desktop** — read this before assuming anything below "just works":
+the report (`AML_Dashboard.Report/`) has 3 pages with 19 real visuals hand-authored directly
+as PBIR JSON (cards, tables, a column chart, a donut, a line chart, slicers) — not just an
+empty shell. Every file is valid JSON (checked directly), and every field/measure reference
+matches something that actually exists in the semantic model. What's **not** verified is
+whether Power BI Desktop's current schema for `visualContainer` JSON matches what was
+hand-written here field-for-field — that can only be confirmed by actually opening it, which
+wasn't possible in the environment this was built in.
 
-Every visual below is something you build in a few minutes with drag-and-drop from the
-Fields pane — that's the "your visual polish" part. See `DASHBOARD_BUILD_SPEC.md` for the
-exact page-by-page spec (fields, measures, visual types, filters).
+**If it opens clean**: you have a working 3-page dashboard already laid out — check it
+against `DASHBOARD_BUILD_SPEC.md` for anything you'd still want to add or restyle.
+
+**If Desktop offers to "repair" the report, or specific visuals don't render**: the
+`.SemanticModel` folder is completely independent of the report and should be unaffected
+either way. Two fallback levels, cheapest first:
+1. Delete the one malformed visual's folder (`pages/<page>/visuals/<visualId>/`) and rebuild
+   just that visual by hand — PBIR's one-file-per-visual layout means a bad visual shouldn't
+   take the rest of the page down with it.
+2. If the whole report won't open: in Desktop, **File → New report** connected to
+   `AML_Dashboard.SemanticModel`, then rebuild pages from `DASHBOARD_BUILD_SPEC.md` (a few
+   minutes of drag-and-drop per page — the spec was written to stand on its own regardless of
+   whether the hand-authored JSON survives contact with real Desktop).
 
 ## First-time setup in Desktop
 

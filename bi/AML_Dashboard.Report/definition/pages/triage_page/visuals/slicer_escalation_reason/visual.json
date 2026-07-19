@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "slicer_escalation_reason",
+  "position": {
+    "x": 1070,
+    "y": 420,
+    "z": 0,
+    "width": 190,
+    "height": 260,
+    "tabOrder": 7
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "PrioritizedAlertQueue" } },
+                  "Property": "escalation_reason"
+                }
+              },
+              "queryRef": "PrioritizedAlertQueue.escalation_reason",
+              "nativeQueryRef": "escalation_reason"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Escalation Reason'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

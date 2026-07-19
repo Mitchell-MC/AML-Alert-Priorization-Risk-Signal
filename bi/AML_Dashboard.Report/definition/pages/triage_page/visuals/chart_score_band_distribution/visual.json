@@ -1,0 +1,62 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "chart_score_band_distribution",
+  "position": {
+    "x": 860,
+    "y": 160,
+    "z": 0,
+    "width": 400,
+    "height": 250,
+    "tabOrder": 5
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "EntityRiskProfile" } },
+                  "Property": "score_band"
+                }
+              },
+              "queryRef": "EntityRiskProfile.score_band",
+              "nativeQueryRef": "score_band"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": { "SourceRef": { "Entity": "EntityRiskProfile" } },
+                      "Property": "account_id"
+                    }
+                  },
+                  "Function": 3
+                }
+              },
+              "queryRef": "CountNonNull(EntityRiskProfile.account_id)",
+              "nativeQueryRef": "Count of account_id"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Score Band Distribution'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

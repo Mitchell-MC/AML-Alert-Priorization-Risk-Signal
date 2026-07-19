@@ -1,0 +1,32 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "card_stale_batches",
+  "position": { "x": 620, "y": 20, "z": 0, "width": 280, "height": 120, "tabOrder": 2 },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "_Measures" } },
+                  "Property": "Batches Stale or Degraded"
+                }
+              },
+              "queryRef": "_Measures.Batches Stale or Degraded",
+              "nativeQueryRef": "Batches Stale or Degraded"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        { "properties": { "text": { "expr": { "Literal": { "Value": "'Batches Stale or Degraded'" } } } } }
+      ]
+    }
+  }
+}

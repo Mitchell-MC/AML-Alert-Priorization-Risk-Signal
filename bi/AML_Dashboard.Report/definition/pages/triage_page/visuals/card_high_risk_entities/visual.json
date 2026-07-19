@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "card_high_risk_entities",
+  "position": {
+    "x": 620,
+    "y": 20,
+    "z": 0,
+    "width": 280,
+    "height": 120,
+    "tabOrder": 2
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "_Measures" } },
+                  "Property": "High-Risk Entities"
+                }
+              },
+              "queryRef": "_Measures.High-Risk Entities",
+              "nativeQueryRef": "High-Risk Entities"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'High-Risk Entities'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

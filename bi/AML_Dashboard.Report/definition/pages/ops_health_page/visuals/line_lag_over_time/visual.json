@@ -1,0 +1,50 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "line_lag_over_time",
+  "position": { "x": 20, "y": 160, "z": 0, "width": 620, "height": 260, "tabOrder": 3 },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                  "Property": "recorded_at"
+                }
+              },
+              "queryRef": "OpsControl.recorded_at",
+              "nativeQueryRef": "recorded_at"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                  "Property": "lag_seconds"
+                }
+              },
+              "queryRef": "OpsControl.lag_seconds",
+              "nativeQueryRef": "lag_seconds"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Ingestion Lag Over Time (target: <900s)'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

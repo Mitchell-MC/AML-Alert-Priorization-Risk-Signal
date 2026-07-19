@@ -1,0 +1,32 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "card_avg_lag",
+  "position": { "x": 20, "y": 20, "z": 0, "width": 280, "height": 120, "tabOrder": 0 },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "_Measures" } },
+                  "Property": "Avg Ingestion Lag (Minutes)"
+                }
+              },
+              "queryRef": "_Measures.Avg Ingestion Lag (Minutes)",
+              "nativeQueryRef": "Avg Ingestion Lag (Minutes)"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        { "properties": { "text": { "expr": { "Literal": { "Value": "'Avg Ingestion Lag (min)'" } } } } }
+      ]
+    }
+  }
+}

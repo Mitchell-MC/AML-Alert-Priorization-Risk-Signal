@@ -1,0 +1,80 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "table_matched_entities",
+  "position": { "x": 20, "y": 160, "z": 0, "width": 620, "height": 520, "tabOrder": 3 },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Rows": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                  "Property": "watchlist_entity_id"
+                }
+              },
+              "queryRef": "WatchlistMatchSummary.watchlist_entity_id",
+              "nativeQueryRef": "watchlist_entity_id"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                  "Property": "matched_account_count"
+                }
+              },
+              "queryRef": "WatchlistMatchSummary.matched_account_count",
+              "nativeQueryRef": "matched_account_count"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                  "Property": "highest_confidence_band"
+                }
+              },
+              "queryRef": "WatchlistMatchSummary.highest_confidence_band",
+              "nativeQueryRef": "highest_confidence_band"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                  "Property": "risk_type"
+                }
+              },
+              "queryRef": "WatchlistMatchSummary.risk_type",
+              "nativeQueryRef": "risk_type"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                "Property": "matched_account_count"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Matched Watchlist Entities'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -123,12 +123,14 @@ for both assumptions in full.
 - [x] CI/CD workflow written, lint/test/schema-validation steps verified locally
 - [x] Streaming resilience drill and incident-response narrative
 - [x] Architecture diagram
-- [ ] Power BI dashboards — semantic model complete and connected to real data;
-      report visuals are a build spec, not yet laid out in Desktop (see
-      [bi/DASHBOARD_BUILD_SPEC.md](bi/DASHBOARD_BUILD_SPEC.md))
-- [ ] CI/CD deploy jobs live-tested — written and locally validated, but this repo isn't yet
-      pushed to a GitHub remote with secrets configured, so the deploy-on-push/deploy-on-tag
-      jobs haven't actually run
+- [x] CI/CD deploy jobs live-tested — pushed to GitHub, secrets wired up, `deploy-dev`
+      confirmed passing on a real Actions run (`deploy-prod-sim` gated behind a required
+      reviewer + tag-only policy, correctly skipped on this push)
+- [x] Power BI semantic model — 5 tables wired to real `aml_dev` schema, 13 DAX measures
+- [ ] Power BI report visuals — 19 visuals hand-authored as PBIR JSON across 3 pages
+      (valid JSON, correct field references), but not verified by actually opening Power BI
+      Desktop — see [bi/README.md](bi/README.md) for what that does and doesn't guarantee,
+      and the fallback rebuild path if any visual doesn't survive contact with real Desktop
 
 ## Docs
 

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "table_recent_batches",
+  "position": { "x": 660, "y": 160, "z": 0, "width": 600, "height": 520, "tabOrder": 4 },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Rows": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                  "Property": "pipeline_name"
+                }
+              },
+              "queryRef": "OpsControl.pipeline_name",
+              "nativeQueryRef": "pipeline_name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                  "Property": "batch_id"
+                }
+              },
+              "queryRef": "OpsControl.batch_id",
+              "nativeQueryRef": "batch_id"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                  "Property": "processed_row_count"
+                }
+              },
+              "queryRef": "OpsControl.processed_row_count",
+              "nativeQueryRef": "processed_row_count"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                  "Property": "dead_letter_count"
+                }
+              },
+              "queryRef": "OpsControl.dead_letter_count",
+              "nativeQueryRef": "dead_letter_count"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                  "Property": "freshness_status"
+                }
+              },
+              "queryRef": "OpsControl.freshness_status",
+              "nativeQueryRef": "freshness_status"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                  "Property": "recorded_at"
+                }
+              },
+              "queryRef": "OpsControl.recorded_at",
+              "nativeQueryRef": "recorded_at"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": { "SourceRef": { "Entity": "OpsControl" } },
+                "Property": "recorded_at"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        { "properties": { "text": { "expr": { "Literal": { "Value": "'Recent Batches'" } } } } }
+      ]
+    }
+  }
+}

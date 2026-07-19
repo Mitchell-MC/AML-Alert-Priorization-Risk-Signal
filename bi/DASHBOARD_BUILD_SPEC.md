@@ -1,8 +1,15 @@
 # Dashboard Build Spec
 
-Page-by-page visual spec for `AML_Dashboard.Report`'s three (currently empty) pages. Every
-field/measure named here already exists in the semantic model — this is a drag-and-drop
-exercise in Power BI Desktop, not new modeling work.
+Page-by-page visual spec for `AML_Dashboard.Report`'s three pages. All 19 visuals below have
+already been hand-authored as PBIR JSON (see `bi/README.md` for what that does and doesn't
+guarantee) — use this doc two ways depending on what you find when you open it in Desktop:
+
+- **If the hand-authored visuals opened fine**: this is your checklist to confirm each one
+  looks right and to add anything you'd still want (conditional formatting, reference lines,
+  the optional QA callout).
+- **If some or all visuals didn't survive contact with real Desktop**: this is the from-scratch
+  rebuild spec. Every field/measure named here already exists in the semantic model — it's a
+  drag-and-drop exercise, not new modeling work.
 
 ## Page 1 — Investigator Triage (`triage_page`)
 

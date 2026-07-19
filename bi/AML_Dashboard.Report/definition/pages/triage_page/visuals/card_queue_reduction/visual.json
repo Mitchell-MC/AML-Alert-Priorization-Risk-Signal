@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "card_queue_reduction",
+  "position": {
+    "x": 920,
+    "y": 20,
+    "z": 0,
+    "width": 280,
+    "height": 120,
+    "tabOrder": 3
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "_Measures" } },
+                  "Property": "Investigator Queue Reduction %"
+                }
+              },
+              "queryRef": "_Measures.Investigator Queue Reduction %",
+              "nativeQueryRef": "Investigator Queue Reduction %"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Investigator Queue Reduction %'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

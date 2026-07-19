@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "card_total_accounts",
+  "position": {
+    "x": 20,
+    "y": 20,
+    "z": 0,
+    "width": 280,
+    "height": 120,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "_Measures" } },
+                  "Property": "Total Accounts Screened"
+                }
+              },
+              "queryRef": "_Measures.Total Accounts Screened",
+              "nativeQueryRef": "Total Accounts Screened"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Total Accounts Screened'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

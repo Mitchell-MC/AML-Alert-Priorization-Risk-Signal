@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "bar_exposure_by_risk_type",
+  "position": { "x": 660, "y": 430, "z": 0, "width": 300, "height": 250, "tabOrder": 5 },
+  "visual": {
+    "visualType": "barChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                  "Property": "risk_type"
+                }
+              },
+              "queryRef": "WatchlistMatchSummary.risk_type",
+              "nativeQueryRef": "risk_type"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": { "SourceRef": { "Entity": "WatchlistMatchSummary" } },
+                      "Property": "matched_account_count"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(WatchlistMatchSummary.matched_account_count)",
+              "nativeQueryRef": "Sum of matched_account_count"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Exposure by Risk Type'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

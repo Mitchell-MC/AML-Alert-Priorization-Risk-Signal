@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "slicer_score_band",
+  "position": {
+    "x": 860,
+    "y": 420,
+    "z": 0,
+    "width": 190,
+    "height": 260,
+    "tabOrder": 6
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "EntityRiskProfile" } },
+                  "Property": "score_band"
+                }
+              },
+              "queryRef": "EntityRiskProfile.score_band",
+              "nativeQueryRef": "score_band"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Score Band'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

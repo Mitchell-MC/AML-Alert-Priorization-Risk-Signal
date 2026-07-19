@@ -1,0 +1,107 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "table_prioritized_queue",
+  "position": {
+    "x": 20,
+    "y": 160,
+    "z": 0,
+    "width": 820,
+    "height": 520,
+    "tabOrder": 4
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Rows": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "PrioritizedAlertQueue" } },
+                  "Property": "priority_rank"
+                }
+              },
+              "queryRef": "PrioritizedAlertQueue.priority_rank",
+              "nativeQueryRef": "priority_rank"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "DimAccount" } },
+                  "Property": "synthetic_holder_name"
+                }
+              },
+              "queryRef": "DimAccount.synthetic_holder_name",
+              "nativeQueryRef": "synthetic_holder_name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "DimAccount" } },
+                  "Property": "synthetic_country"
+                }
+              },
+              "queryRef": "DimAccount.synthetic_country",
+              "nativeQueryRef": "synthetic_country"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "PrioritizedAlertQueue" } },
+                  "Property": "composite_risk_score"
+                }
+              },
+              "queryRef": "PrioritizedAlertQueue.composite_risk_score",
+              "nativeQueryRef": "composite_risk_score"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "PrioritizedAlertQueue" } },
+                  "Property": "escalation_reason"
+                }
+              },
+              "queryRef": "PrioritizedAlertQueue.escalation_reason",
+              "nativeQueryRef": "escalation_reason"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "PrioritizedAlertQueue" } },
+                  "Property": "status"
+                }
+              },
+              "queryRef": "PrioritizedAlertQueue.status",
+              "nativeQueryRef": "status"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": { "SourceRef": { "Entity": "PrioritizedAlertQueue" } },
+                "Property": "priority_rank"
+              }
+            },
+            "direction": "Ascending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Prioritized Investigation Queue'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

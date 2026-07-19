@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "card_alerts_prioritized",
+  "position": {
+    "x": 320,
+    "y": 20,
+    "z": 0,
+    "width": 280,
+    "height": 120,
+    "tabOrder": 1
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "_Measures" } },
+                  "Property": "Alerts Prioritized for Review"
+                }
+              },
+              "queryRef": "_Measures.Alerts Prioritized for Review",
+              "nativeQueryRef": "Alerts Prioritized for Review"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": { "expr": { "Literal": { "Value": "'Alerts Prioritized for Review'" } } }
+          }
+        }
+      ]
+    }
+  }
+}

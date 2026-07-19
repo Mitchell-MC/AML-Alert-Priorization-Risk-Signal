@@ -1,0 +1,32 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.4.0/schema.json",
+  "name": "card_weak_matches",
+  "position": { "x": 620, "y": 20, "z": 0, "width": 280, "height": 120, "tabOrder": 2 },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "_Measures" } },
+                  "Property": "Weak Match Alerts"
+                }
+              },
+              "queryRef": "_Measures.Weak Match Alerts",
+              "nativeQueryRef": "Weak Match Alerts"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "visualContainerObjects": {
+      "title": [
+        { "properties": { "text": { "expr": { "Literal": { "Value": "'Weak Matches'" } } } } }
+      ]
+    }
+  }
+}
