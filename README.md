@@ -126,11 +126,19 @@ for both assumptions in full.
 - [x] CI/CD deploy jobs live-tested — pushed to GitHub, secrets wired up, `deploy-dev`
       confirmed passing on a real Actions run (`deploy-prod-sim` gated behind a required
       reviewer + tag-only policy, correctly skipped on this push)
-- [x] Power BI semantic model — 5 tables wired to real `aml_dev` schema, 13 DAX measures
-- [ ] Power BI report visuals — 19 visuals hand-authored as PBIR JSON across 3 pages
-      (valid JSON, correct field references), but not verified by actually opening Power BI
-      Desktop — see [bi/README.md](bi/README.md) for what that does and doesn't guarantee,
-      and the fallback rebuild path if any visual doesn't survive contact with real Desktop
+- [x] Power BI semantic model — 5 tables wired to real `aml_dev` schema, 13 DAX measures,
+      confirmed loading correctly in real Power BI Desktop (all tables visible, structure
+      intact) after fixing a missing `version.json` found via an actual open attempt
+- [ ] Power BI report visuals — 19 visuals hand-authored as PBIR JSON across 3 pages; report
+      shell opens in Desktop, individual visual rendering not yet fully confirmed — see
+      [bi/README.md](bi/README.md) for the fallback path if any visual doesn't survive contact
+      with real Desktop
+- [x] Databricks Lakeview dashboard — a second, fully-verified BI deliverable: 7 datasets, 3
+      pages, 16 widgets, every underlying query executed directly against the warehouse
+      before being embedded, deployed via the same Asset Bundle as everything else, hourly
+      auto-refresh, shared read-only with all workspace users via a single link (see
+      [resources/dashboards/README.md](resources/dashboards/README.md)) — this one doesn't
+      have the Power BI report's "can't verify without Desktop" caveat
 
 ## Docs
 
