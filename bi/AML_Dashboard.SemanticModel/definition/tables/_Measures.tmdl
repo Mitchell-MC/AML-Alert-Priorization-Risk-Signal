@@ -1,0 +1,129 @@
+/// Measures-only table (no real data) so KPI DAX lives in one place instead of being
+/// scattered across whichever table each measure happens to reference. Business
+/// definitions for each of these are in docs/00_business_charter.md's "Business KPIs"
+/// section -- keep this file and that doc in sync if a definition changes.
+table _Measures
+	isHidden
+	lineageTag = f2b2c002-0002-4b22-9b22-000000000001
+
+	column Column1
+		dataType: int64
+		isHidden
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: Column1
+
+	measure 'Total Accounts Screened' = COUNTROWS(DimAccount)
+		formatString: #,0
+		displayFolder: Volume
+
+	measure 'High-Risk Entities' = ```
+			CALCULATE(
+			    COUNTROWS(EntityRiskProfile),
+			    EntityRiskProfile[score_band] = "high"
+			)
+			```
+		formatString: #,0
+		displayFolder: Volume
+
+	measure 'Alerts Prioritized for Review' = COUNTROWS(PrioritizedAlertQueue)
+		formatString: #,0
+		displayFolder: Volume
+
+	measure 'High-Confidence Alerts' = ```
+			CALCULATE(
+			    COUNTROWS(PrioritizedAlertQueue),
+			    PrioritizedAlertQueue[escalation_reason] = "sanctions_hard_override"
+			)
+			```
+		formatString: #,0
+		displayFolder: Volume
+
+	/// Share of screened accounts that did NOT need investigator review -- the core "we cut
+	/// through the noise" KPI. Business definition: docs/00_business_charter.md KPI #3.
+	measure 'Investigator Queue Reduction %' = ```
+			DIVIDE(
+			    [Total Accounts Screened] - [Alerts Prioritized for Review],
+			    [Total Accounts Screened]
+			)
+			```
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: ROI
+
+	/// Analyst-hours-saved estimate. MINUTES_PER_LOW_PRIORITY_REVIEW is a documented
+	/// assumption (not measured -- there's no real investigator feedback loop in this
+	/// portfolio project, see docs/00_business_charter.md), not a fitted/calibrated number.
+	/// Change the literal below if a more defensible figure is available.
+	measure 'Estimated Analyst Hours Saved' = ```
+			VAR MinutesPerLowPriorityReview = 8
+			VAR SuppressedAlerts = [Total Accounts Screened] - [Alerts Prioritized for Review]
+			RETURN
+			    DIVIDE(SuppressedAlerts * MinutesPerLowPriorityReview, 60)
+			```
+		formatString: #,0
+		displayFolder: ROI
+
+	measure 'Exact Match Alerts' = ```
+			CALCULATE(COUNTROWS(EntityRiskProfile), EntityRiskProfile[best_band_rank] = 3)
+			```
+		formatString: #,0
+		displayFolder: "Watchlist Match Quality"
+
+	measure 'Strong Match Alerts' = ```
+			CALCULATE(COUNTROWS(EntityRiskProfile), EntityRiskProfile[best_band_rank] = 2)
+			```
+		formatString: #,0
+		displayFolder: "Watchlist Match Quality"
+
+	measure 'Weak Match Alerts' = ```
+			CALCULATE(COUNTROWS(EntityRiskProfile), EntityRiskProfile[best_band_rank] = 1)
+			```
+		formatString: #,0
+		displayFolder: "Watchlist Match Quality"
+
+	/// Share of total composite risk concentrated in the top 10% of scored entities --
+	/// supports the "focus investigator effort where it matters" narrative (business charter
+	/// KPI #6). Uses a static top-N-percent window via RANKX, recomputed per filter context.
+	measure 'Risk Concentration (Top 10%)' = ```
+			VAR TotalScore = SUM(EntityRiskProfile[composite_risk_score])
+			VAR RankedAccounts =
+			    ADDCOLUMNS(
+			        VALUES(EntityRiskProfile[account_id]),
+			        "@Score", CALCULATE(SUM(EntityRiskProfile[composite_risk_score])),
+			        "@Rank", RANKX(ALL(EntityRiskProfile[account_id]), CALCULATE(SUM(EntityRiskProfile[composite_risk_score])))
+			    )
+			VAR TopDecileCount = ROUNDUP([Total Accounts Screened] * 0.1, 0)
+			VAR TopDecileScore =
+			    SUMX(FILTER(RankedAccounts, [@Rank] <= TopDecileCount), [@Score])
+			RETURN
+			    DIVIDE(TopDecileScore, TotalScore)
+			```
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: ROI
+
+	/// Ops health: average per-batch ingestion lag from the streaming pipeline, in minutes.
+	/// Freshness SLA target is 15 minutes -- docs/01_nonfunctional_requirements.md.
+	measure 'Avg Ingestion Lag (Minutes)' = DIVIDE(AVERAGE(OpsControl[lag_seconds]), 60)
+		formatString: 0.0
+		displayFolder: Operations
+
+	measure 'Dead-Letter Rate' = ```
+			DIVIDE(
+			    SUM(OpsControl[dead_letter_count]),
+			    SUM(OpsControl[dead_letter_count]) + SUM(OpsControl[processed_row_count])
+			)
+			```
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: Operations
+
+	measure 'Batches Stale or Degraded' = ```
+			CALCULATE(COUNTROWS(OpsControl), OpsControl[freshness_status] <> "fresh")
+			```
+		formatString: #,0
+		displayFolder: Operations
+
+	partition _Measures = calculated
+		mode: import
+		source = { 1 }
+
+	annotation PBI_Id = 00000000000000000000000000000001

@@ -1,0 +1,39 @@
+resources:
+  jobs:
+    bronze_ingestion:
+      name: aml_bronze_ingestion
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - ../../dist/*.whl
+      tasks:
+        - task_key: ingest_ofac
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/bronze/ingest_ofac.py
+            parameters:
+              - "${bundle.target}"
+              - "/Volumes/${var.catalog}/bronze/raw_files"
+        - task_key: ingest_opensanctions
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/bronze/ingest_opensanctions.py
+            parameters:
+              - "${bundle.target}"
+              - "/Volumes/${var.catalog}/bronze/raw_files"
+        - task_key: ingest_amlsim
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/bronze/ingest_amlsim.py
+            parameters:
+              - "${bundle.target}"
+              - "/Volumes/${var.catalog}/bronze/raw_files"
+        - task_key: ingest_elliptic
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/bronze/ingest_elliptic.py
+            parameters:
+              - "${bundle.target}"
+              - "/Volumes/${var.catalog}/bronze/raw_files"

@@ -1,0 +1,57 @@
+table PrioritizedAlertQueue
+
+	column alert_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: alert_id
+
+	column entity_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: entity_id
+
+	column account_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: account_id
+
+	column priority_rank
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: priority_rank
+
+	column composite_risk_score
+		dataType: int64
+		formatString: 0
+		summarizeBy: average
+		sourceColumn: composite_risk_score
+
+	column escalation_reason
+		dataType: string
+		summarizeBy: none
+		sourceColumn: escalation_reason
+
+	column status
+		dataType: string
+		summarizeBy: none
+		sourceColumn: status
+
+	column generated_at
+		dataType: dateTime
+		formatString: General Date
+		summarizeBy: none
+		sourceColumn: generated_at
+
+	partition PrioritizedAlertQueue = m
+		mode: import
+		source =
+				let
+				    Source = Databricks.Catalogs("dbc-08add949-9c19.cloud.databricks.com", "/sql/1.0/warehouses/59901b31d31db40a", [Catalog=null, Database=null]),
+				    aml_dev_Database = Source{[Name="aml_dev",Kind="Database"]}[Data],
+				    gold_Schema = aml_dev_Database{[Name="gold",Kind="Schema"]}[Data],
+				    prioritized_alert_queue_Table = gold_Schema{[Name="prioritized_alert_queue",Kind="Table"]}[Data]
+				in
+				    prioritized_alert_queue_Table
+
+	annotation PBI_ResultType = Table

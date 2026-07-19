@@ -1,0 +1,33 @@
+resources:
+  jobs:
+    silver_accounts_and_matches:
+      name: aml_silver_accounts_and_matches
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - ../../dist/*.whl
+      tasks:
+        - task_key: build_accounts_and_matches
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/silver/build_accounts_and_matches.py
+            parameters:
+              - "${bundle.target}"
+
+    silver_network_risk_reference:
+      name: aml_silver_network_risk_reference
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - ../../dist/*.whl
+      tasks:
+        - task_key: build_network_risk_reference
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/silver/build_network_risk_reference.py
+            parameters:
+              - "${bundle.target}"

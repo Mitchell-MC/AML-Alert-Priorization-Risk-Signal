@@ -1,0 +1,36 @@
+# Raw source data - re-fetchable from source, not meant to be committed (~260MB+)
+raw_data/
+
+# Mentoring-program project brief - contains the candidate's personal skill self-assessment,
+# not meant for a public repo even though the project it describes is
+*.pdf
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Databricks / Spark
+.databricks/
+derby.log
+metastore_db/
+spark-warehouse/
+checkpoints/
+
+# Local env / secrets
+.env
+.env.*
+*.pem
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

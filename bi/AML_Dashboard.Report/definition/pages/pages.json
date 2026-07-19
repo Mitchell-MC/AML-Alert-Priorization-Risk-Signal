@@ -1,0 +1,5 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pages/1.2.0/schema.json",
+  "pageOrder": ["triage_page", "exposure_page", "ops_health_page"],
+  "activePageName": "triage_page"
+}

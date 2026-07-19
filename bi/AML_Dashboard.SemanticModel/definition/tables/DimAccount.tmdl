@@ -1,0 +1,39 @@
+table DimAccount
+
+	column account_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: account_id
+		isKey
+
+	column synthetic_holder_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: synthetic_holder_name
+
+	column synthetic_country
+		dataType: string
+		summarizeBy: none
+		sourceColumn: synthetic_country
+
+	/// QA/portfolio-validation field, not real investigator data: whether this account's
+	/// identity was a deliberately seeded near-miss test case (see
+	/// matching/synthetic_identity.py). Useful for a "system validation" page proving recall
+	/// against known positives; keep off any page meant to represent a real investigator view.
+	column is_seeded_collision
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_seeded_collision
+
+	partition DimAccount = m
+		mode: import
+		source =
+				let
+				    Source = Databricks.Catalogs("dbc-08add949-9c19.cloud.databricks.com", "/sql/1.0/warehouses/59901b31d31db40a", [Catalog=null, Database=null]),
+				    aml_dev_Database = Source{[Name="aml_dev",Kind="Database"]}[Data],
+				    silver_Schema = aml_dev_Database{[Name="silver",Kind="Schema"]}[Data],
+				    account_Table = silver_Schema{[Name="account",Kind="Table"]}[Data]
+				in
+				    account_Table
+
+	annotation PBI_ResultType = Table

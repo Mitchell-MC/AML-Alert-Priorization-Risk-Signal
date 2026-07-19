@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+
+jobs:
+  lint-and-test:
+    name: Lint, unit test, schema validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project (dev extras)
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Unit tests
+        run: pytest -v
+
+      - name: Validate .sql files parse into well-formed statements
+        # Lightweight pre-deploy check: every .sql file under src/ must split into at least
+        # one non-empty statement via the same sql_runner every job actually executes with,
+        # and every {catalog}-style placeholder must resolve cleanly. Doesn't validate SQL
+        # semantics (that only happens against a real warehouse), just catches file-level
+        # corruption/typos before they reach a deploy.
+        run: |
+          python - <<'EOF'
+          import glob
+          import sys
+          sys.path.insert(0, "src")
+          from aml_lakehouse.common.sql_runner import load_statements
+
+          failed = False
+          for path in glob.glob("src/**/*.sql", recursive=True):
+              statements = load_statements(path, catalog="aml_test")
+              if not statements:
+                  print(f"FAIL: {path} produced zero statements")
+                  failed = True
+              elif any("{catalog}" in s for s in statements):
+                  print(f"FAIL: {path} has an unresolved {{catalog}} placeholder")
+                  failed = True
+              else:
+                  print(f"OK: {path} ({len(statements)} statement(s))")
+          sys.exit(1 if failed else 0)
+          EOF
+
+  deploy-dev:
+    name: Deploy to dev
+    needs: lint-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project + build deps
+        run: python -m pip install -e ".[elliptic]" build
+
+      - name: Install Databricks CLI
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Stage raw source files into aml_dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: python scripts/stage_raw_files.py --catalog aml_dev
+
+      - name: Deploy bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle deploy --target dev
+
+  deploy-prod-sim:
+    name: Deploy to prod-sim (tagged release)
+    needs: lint-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # GitHub Environments' own protection rules (required reviewers) are the promotion gate
+    # here -- configure a manual-approval rule on the "prod-sim" environment in repo settings
+    # rather than encoding approval logic in this workflow. See
+    # docs/02_environment_and_branching.md.
+    environment: prod-sim
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project + build deps
+        run: python -m pip install -e ".[elliptic]" build
+
+      - name: Install Databricks CLI
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Stage raw source files into aml_prod_sim
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: python scripts/stage_raw_files.py --catalog aml_prod_sim
+
+      - name: Deploy bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle deploy --target prod_sim

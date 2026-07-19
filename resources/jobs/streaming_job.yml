@@ -1,0 +1,29 @@
+resources:
+  jobs:
+    streaming_validation_run:
+      name: aml_streaming_validation_run
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - ../../dist/*.whl
+      tasks:
+        - task_key: drip_feed_producer
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/streaming/simulate_txn_feed.py
+            parameters:
+              - "/Volumes/${var.catalog}/bronze/raw_files/amlsim/transactions.csv"
+              - "/Volumes/${var.catalog}/bronze/raw_files/txn_stream_source"
+              - "0"
+        - task_key: stream_consumer
+          environment_key: default
+          depends_on:
+            - task_key: drip_feed_producer
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/streaming/txn_stream_ingest.py
+            parameters:
+              - "${bundle.target}"
+              - "/Volumes/${var.catalog}/bronze/raw_files/txn_stream_source"
+              - "/Volumes/${var.catalog}/bronze/checkpoints"

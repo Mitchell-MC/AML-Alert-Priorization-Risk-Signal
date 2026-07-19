@@ -1,0 +1,7 @@
+relationship r_entityriskprofile_dimaccount
+	fromColumn: EntityRiskProfile.account_id
+	toColumn: DimAccount.account_id
+
+relationship r_prioritizedalertqueue_dimaccount
+	fromColumn: PrioritizedAlertQueue.account_id
+	toColumn: DimAccount.account_id

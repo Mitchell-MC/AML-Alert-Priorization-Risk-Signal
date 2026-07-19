@@ -1,0 +1,36 @@
+bundle:
+  name: aml-lakehouse
+
+artifacts:
+  aml_lakehouse_wheel:
+    type: whl
+    build: python -m pip install --upgrade build >/dev/null && python -m build --wheel
+    path: .
+
+include:
+  - resources/jobs/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog for this target (docs/02_environment_and_branching.md)
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-08add949-9c19.cloud.databricks.com
+    variables:
+      catalog: aml_dev
+  test:
+    mode: development
+    workspace:
+      host: https://dbc-08add949-9c19.cloud.databricks.com
+    variables:
+      catalog: aml_test
+  prod_sim:
+    mode: production
+    workspace:
+      host: https://dbc-08add949-9c19.cloud.databricks.com
+    variables:
+      catalog: aml_prod_sim
