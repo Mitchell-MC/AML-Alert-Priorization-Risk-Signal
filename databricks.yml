@@ -9,6 +9,7 @@ artifacts:
 
 include:
   - resources/jobs/*.yml
+  - resources/dashboards/*.yml
 
 variables:
   catalog:

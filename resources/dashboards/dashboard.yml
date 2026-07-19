@@ -1,0 +1,10 @@
+resources:
+  dashboards:
+    aml_dashboard:
+      display_name: "AML Alert Prioritization & Risk Signal Dashboard"
+      file_path: ../../resources/dashboards/aml_dashboard.lvdash.json
+      warehouse_id: 59901b31d31db40a
+      embed_credentials: true
+      permissions:
+        - group_name: users
+          level: CAN_READ

@@ -1,0 +1,179 @@
+{
+  "datasets": [
+    {
+      "name": "kpi_scalars",
+      "displayName": "KPI Scalars",
+      "query": "SELECT (SELECT COUNT(*) FROM aml_dev.gold.entity_risk_profile) AS total_accounts, (SELECT COUNT(*) FROM aml_dev.gold.prioritized_alert_queue) AS alerts_prioritized, (SELECT COUNT(*) FROM aml_dev.gold.entity_risk_profile WHERE score_band='high') AS high_risk_entities, ROUND(1.0 - (SELECT COUNT(*) FROM aml_dev.gold.prioritized_alert_queue)*1.0/(SELECT COUNT(*) FROM aml_dev.gold.entity_risk_profile), 4) AS queue_reduction_pct, (SELECT COUNT(*) FROM aml_dev.gold.entity_risk_profile WHERE best_band_rank=3) AS exact_matches, (SELECT COUNT(*) FROM aml_dev.gold.entity_risk_profile WHERE best_band_rank=2) AS strong_matches, (SELECT COUNT(*) FROM aml_dev.gold.entity_risk_profile WHERE best_band_rank=1) AS weak_matches, (SELECT ROUND((unix_timestamp(current_timestamp()) - unix_timestamp(MAX(recorded_at)))/60.0, 1) FROM aml_dev.gold.ops_control) AS minutes_since_last_batch, (SELECT ROUND(SUM(dead_letter_count)*1.0/NULLIF(SUM(dead_letter_count)+SUM(processed_row_count),0), 4) FROM aml_dev.gold.ops_control) AS dead_letter_rate, (SELECT COUNT(*) FROM aml_dev.gold.ops_control) AS total_batches_recorded"
+    },
+    {
+      "name": "score_band_distribution",
+      "displayName": "Score Band Distribution",
+      "query": "SELECT score_band, COUNT(*) AS cnt FROM aml_dev.gold.entity_risk_profile GROUP BY score_band"
+    },
+    {
+      "name": "alert_queue_display",
+      "displayName": "Prioritized Alert Queue",
+      "query": "SELECT q.priority_rank, a.synthetic_holder_name, a.synthetic_country, q.composite_risk_score, q.escalation_reason, q.status FROM aml_dev.gold.prioritized_alert_queue q JOIN aml_dev.silver.account a ON a.account_id = q.account_id ORDER BY q.priority_rank"
+    },
+    {
+      "name": "watchlist_summary_raw",
+      "displayName": "Watchlist Match Summary",
+      "query": "SELECT watchlist_entity_id, matched_account_count, highest_confidence_band, risk_type FROM aml_dev.gold.watchlist_match_summary ORDER BY matched_account_count DESC"
+    },
+    {
+      "name": "confidence_band_distribution",
+      "displayName": "Confidence Band Distribution",
+      "query": "SELECT highest_confidence_band, COUNT(*) AS cnt FROM aml_dev.gold.watchlist_match_summary GROUP BY highest_confidence_band"
+    },
+    {
+      "name": "risk_type_exposure",
+      "displayName": "Risk Type Exposure",
+      "query": "SELECT risk_type, SUM(matched_account_count) AS total_matched FROM aml_dev.gold.watchlist_match_summary GROUP BY risk_type"
+    },
+    {
+      "name": "ops_control_raw",
+      "displayName": "Ops Control",
+      "query": "SELECT pipeline_name, batch_id, processed_row_count, dead_letter_count, freshness_status, recorded_at FROM aml_dev.gold.ops_control ORDER BY recorded_at DESC"
+    }
+  ],
+  "pages": [
+    {
+      "name": "triage",
+      "displayName": "Investigator Triage",
+      "layout": [
+        { "widget": { "name": "kpi_total_accounts",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"total_accounts","expression":"`total_accounts`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "total_accounts", "displayName": "Total Accounts Screened" } } } },
+          "position": { "x": 0, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "kpi_alerts_prioritized",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"alerts_prioritized","expression":"`alerts_prioritized`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "alerts_prioritized", "displayName": "Alerts Prioritized for Review" } } } },
+          "position": { "x": 2, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "kpi_high_risk",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"high_risk_entities","expression":"`high_risk_entities`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "high_risk_entities", "displayName": "High-Risk Entities" } } } },
+          "position": { "x": 4, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "kpi_queue_reduction",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"queue_reduction_pct","expression":"`queue_reduction_pct`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "queue_reduction_pct", "displayName": "Investigator Queue Reduction", "format": { "type": "number-percent" } } } } },
+          "position": { "x": 6, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "table_alert_queue",
+            "queries": [{ "name": "q", "query": { "datasetName": "alert_queue_display", "fields": [
+                {"name":"priority_rank","expression":"`priority_rank`"},
+                {"name":"synthetic_holder_name","expression":"`synthetic_holder_name`"},
+                {"name":"synthetic_country","expression":"`synthetic_country`"},
+                {"name":"composite_risk_score","expression":"`composite_risk_score`"},
+                {"name":"escalation_reason","expression":"`escalation_reason`"},
+                {"name":"status","expression":"`status`"}
+              ], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "table", "encodings": { "columns": [
+                {"fieldName":"priority_rank","displayName":"Rank"},
+                {"fieldName":"synthetic_holder_name","displayName":"Name"},
+                {"fieldName":"synthetic_country","displayName":"Country"},
+                {"fieldName":"composite_risk_score","displayName":"Score"},
+                {"fieldName":"escalation_reason","displayName":"Escalation Reason"},
+                {"fieldName":"status","displayName":"Status"}
+              ] } } },
+          "position": { "x": 0, "y": 3, "width": 5, "height": 8 } },
+        { "widget": { "name": "chart_score_band",
+            "queries": [{ "name": "q", "query": { "datasetName": "score_band_distribution", "fields": [
+                {"name":"score_band","expression":"`score_band`"},
+                {"name":"cnt","expression":"`cnt`"}
+              ], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "bar", "encodings": {
+                "x": {"fieldName":"score_band","displayName":"Score Band","scale":{"type":"categorical"}},
+                "y": {"fieldName":"cnt","displayName":"Accounts","scale":{"type":"quantitative"}}
+              } } },
+          "position": { "x": 5, "y": 3, "width": 3, "height": 8 } }
+      ]
+    },
+    {
+      "name": "exposure",
+      "displayName": "Sanctions & PEP Exposure",
+      "layout": [
+        { "widget": { "name": "kpi_exact",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"exact_matches","expression":"`exact_matches`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "exact_matches", "displayName": "Exact Matches" } } } },
+          "position": { "x": 0, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "kpi_strong",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"strong_matches","expression":"`strong_matches`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "strong_matches", "displayName": "Strong Matches" } } } },
+          "position": { "x": 2, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "kpi_weak",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"weak_matches","expression":"`weak_matches`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "weak_matches", "displayName": "Weak Matches" } } } },
+          "position": { "x": 4, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "table_watchlist_summary",
+            "queries": [{ "name": "q", "query": { "datasetName": "watchlist_summary_raw", "fields": [
+                {"name":"watchlist_entity_id","expression":"`watchlist_entity_id`"},
+                {"name":"matched_account_count","expression":"`matched_account_count`"},
+                {"name":"highest_confidence_band","expression":"`highest_confidence_band`"},
+                {"name":"risk_type","expression":"`risk_type`"}
+              ], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "table", "encodings": { "columns": [
+                {"fieldName":"watchlist_entity_id","displayName":"Watchlist Entity"},
+                {"fieldName":"matched_account_count","displayName":"Matched Accounts"},
+                {"fieldName":"highest_confidence_band","displayName":"Confidence"},
+                {"fieldName":"risk_type","displayName":"Risk Type"}
+              ] } } },
+          "position": { "x": 0, "y": 3, "width": 5, "height": 8 } },
+        { "widget": { "name": "chart_confidence_mix",
+            "queries": [{ "name": "q", "query": { "datasetName": "confidence_band_distribution", "fields": [
+                {"name":"highest_confidence_band","expression":"`highest_confidence_band`"},
+                {"name":"cnt","expression":"`cnt`"}
+              ], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "pie", "encodings": {
+                "angle": {"fieldName":"cnt","displayName":"Count"},
+                "color": {"fieldName":"highest_confidence_band","displayName":"Confidence Band"}
+              } } },
+          "position": { "x": 5, "y": 3, "width": 3, "height": 4 } },
+        { "widget": { "name": "chart_risk_type_exposure",
+            "queries": [{ "name": "q", "query": { "datasetName": "risk_type_exposure", "fields": [
+                {"name":"risk_type","expression":"`risk_type`"},
+                {"name":"total_matched","expression":"`total_matched`"}
+              ], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "bar", "encodings": {
+                "x": {"fieldName":"risk_type","displayName":"Risk Type","scale":{"type":"categorical"}},
+                "y": {"fieldName":"total_matched","displayName":"Matched Accounts","scale":{"type":"quantitative"}}
+              } } },
+          "position": { "x": 5, "y": 7, "width": 3, "height": 4 } }
+      ]
+    },
+    {
+      "name": "ops_health",
+      "displayName": "Operational Health",
+      "layout": [
+        { "widget": { "name": "kpi_minutes_since_last_batch",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"minutes_since_last_batch","expression":"`minutes_since_last_batch`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "minutes_since_last_batch", "displayName": "Minutes Since Last Batch" } } } },
+          "position": { "x": 0, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "kpi_dead_letter_rate",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"dead_letter_rate","expression":"`dead_letter_rate`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "dead_letter_rate", "displayName": "Dead-Letter Rate", "format": { "type": "number-percent" } } } } },
+          "position": { "x": 2, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "kpi_total_batches",
+            "queries": [{ "name": "q", "query": { "datasetName": "kpi_scalars", "fields": [{"name":"total_batches_recorded","expression":"`total_batches_recorded`"}], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "counter", "encodings": { "value": { "fieldName": "total_batches_recorded", "displayName": "Batches Recorded" } } } },
+          "position": { "x": 4, "y": 0, "width": 2, "height": 3 } },
+        { "widget": { "name": "table_recent_batches",
+            "queries": [{ "name": "q", "query": { "datasetName": "ops_control_raw", "fields": [
+                {"name":"pipeline_name","expression":"`pipeline_name`"},
+                {"name":"batch_id","expression":"`batch_id`"},
+                {"name":"processed_row_count","expression":"`processed_row_count`"},
+                {"name":"dead_letter_count","expression":"`dead_letter_count`"},
+                {"name":"freshness_status","expression":"`freshness_status`"},
+                {"name":"recorded_at","expression":"`recorded_at`"}
+              ], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "table", "encodings": { "columns": [
+                {"fieldName":"pipeline_name","displayName":"Pipeline"},
+                {"fieldName":"batch_id","displayName":"Batch"},
+                {"fieldName":"processed_row_count","displayName":"Rows Processed"},
+                {"fieldName":"dead_letter_count","displayName":"Dead-Lettered"},
+                {"fieldName":"freshness_status","displayName":"Freshness"},
+                {"fieldName":"recorded_at","displayName":"Recorded At"}
+              ] } } },
+          "position": { "x": 0, "y": 3, "width": 8, "height": 8 } }
+      ]
+    }
+  ]
+}
