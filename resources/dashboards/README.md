@@ -66,3 +66,15 @@ No `network_risk_exposure` / Elliptic-sourced widget yet, and the alert-queue ta
 yet show `top_contributing_factors` (an `array<struct>` column — same Power Query-style
 "needs an explode/flatten step" caveat as `WatchlistMatchSummary.jurisdictions` in the Power
 BI project). Straightforward to add as a further dataset/widget; not done here for time.
+
+## Ops triage companion
+
+For incident response and month-end readiness checks, use the operational SQL pack in
+`resources/ops/` (especially `month_end_status.sql`, `owner_handoff_queue.sql`, and
+`schema_drift_breaking_changes.sql`). This lets on-call and finance teams answer freshness,
+impact, and ownership questions immediately even before dashboard updates are published.
+
+The Lakeview dashboard now also includes native Operational Health tables for:
+
+- month-end publish/serving status (`table_month_end_status`)
+- ownership-based escalation queue (`table_owner_handoff_queue`)

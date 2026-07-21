@@ -63,3 +63,14 @@ controls.
   explainable and reproducible).
 - Ingestion metadata (source, timestamp, schema version, row/file counts) is immutable and
   queryable per batch, forming the audit trail for "what data was known at decision time."
+
+## Enforced controls
+
+- **Fail-loud coding standard**: broad or silent exception handlers are blocked in CI via
+  `scripts/check_ai_risk_patterns.py`.
+- **Data contract guardrails**: required-column/non-empty/invalid-ratio checks are enforced
+  with `src/aml_lakehouse/common/risk_guardrails.py`.
+- **Structured incident telemetry**: batch and streaming jobs emit JSON logs with row counts,
+  lag, and quality metrics.
+- **Governance-as-code checks**: CI runs `scripts/check_governance_policies.py` to catch
+  secret patterns and blocked PII field names in SQL assets before merge.

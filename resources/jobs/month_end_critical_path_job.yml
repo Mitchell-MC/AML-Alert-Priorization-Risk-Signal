@@ -1,0 +1,60 @@
+resources:
+  jobs:
+    month_end_critical_path:
+      name: aml_month_end_critical_path
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - ../../dist/*.whl
+      tasks:
+        - task_key: stream_consumer
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/streaming/txn_stream_ingest.py
+            parameters:
+              - "${bundle.target}"
+              - "/Volumes/${var.catalog}/bronze/raw_files/txn_stream_source"
+              - "/Volumes/${var.catalog}/bronze/checkpoints"
+        - task_key: build_accounts_and_matches
+          environment_key: default
+          depends_on:
+            - task_key: stream_consumer
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/silver/build_accounts_and_matches.py
+            parameters:
+              - "${bundle.target}"
+        - task_key: build_network_risk_reference
+          environment_key: default
+          depends_on:
+            - task_key: build_accounts_and_matches
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/silver/build_network_risk_reference.py
+            parameters:
+              - "${bundle.target}"
+        - task_key: publish_gold_with_gate
+          environment_key: default
+          depends_on:
+            - task_key: build_network_risk_reference
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/gold/build_gold_with_gate.py
+            parameters:
+              - "${bundle.target}"
+
+    replay_txn_dead_letter:
+      name: aml_replay_txn_dead_letter
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - ../../dist/*.whl
+      tasks:
+        - task_key: replay_rows
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/streaming/replay_txn_dead_letter.py
+            parameters:
+              - "${bundle.target}"
+              - "10000"

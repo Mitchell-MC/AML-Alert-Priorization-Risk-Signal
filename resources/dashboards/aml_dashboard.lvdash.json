@@ -34,6 +34,16 @@
       "name": "ops_control_raw",
       "displayName": "Ops Control",
       "query": "SELECT pipeline_name, batch_id, processed_row_count, dead_letter_count, freshness_status, recorded_at FROM aml_dev.gold.ops_control ORDER BY recorded_at DESC"
+    },
+    {
+      "name": "month_end_status_raw",
+      "displayName": "Month-End Status",
+      "query": "WITH latest_publish AS ( SELECT * FROM aml_dev.gold.ops_control WHERE pipeline_name = 'gold_month_end_publish' ORDER BY recorded_at DESC LIMIT 1 ), latest_serving AS ( SELECT MAX(serving_metadata_recorded_at) AS serving_metadata_recorded_at, MAX(as_of_batch_id) AS as_of_batch_id, MAX(CASE WHEN is_stale THEN 1 ELSE 0 END) AS is_stale_int, MAX(last_good_batch_age_minutes) AS last_good_batch_age_minutes FROM aml_dev.gold.month_end_reconciliation_serving ) SELECT lp.pipeline_name, lp.business_process, lp.impacted_table, lp.freshness_status, lp.last_successful_batch_id, lp.last_good_batch_age_minutes, lp.recorded_at AS publish_recorded_at, ls.serving_metadata_recorded_at, ls.as_of_batch_id, CAST(ls.is_stale_int AS BOOLEAN) AS serving_is_stale, lp.upstream_owner, lp.upstream_contact FROM latest_publish lp CROSS JOIN latest_serving ls"
+    },
+    {
+      "name": "owner_handoff_queue_raw",
+      "displayName": "Owner Handoff Queue",
+      "query": "SELECT business_process, impacted_table, upstream_owner, upstream_contact, pipeline_name, freshness_status, dead_letter_count, last_successful_batch_id, last_good_batch_age_minutes, recorded_at FROM aml_dev.gold.ops_control WHERE freshness_status != 'fresh' OR dead_letter_count > 0 ORDER BY CASE freshness_status WHEN 'degraded' THEN 1 WHEN 'stale' THEN 2 ELSE 3 END, dead_letter_count DESC, recorded_at DESC"
     }
   ],
   "pages": [
@@ -172,7 +182,51 @@
                 {"fieldName":"freshness_status","displayName":"Freshness"},
                 {"fieldName":"recorded_at","displayName":"Recorded At"}
               ] } } },
-          "position": { "x": 0, "y": 3, "width": 8, "height": 8 } }
+          "position": { "x": 0, "y": 3, "width": 8, "height": 6 } },
+        { "widget": { "name": "table_month_end_status",
+            "queries": [{ "name": "q", "query": { "datasetName": "month_end_status_raw", "fields": [
+                {"name":"pipeline_name","expression":"`pipeline_name`"},
+                {"name":"business_process","expression":"`business_process`"},
+                {"name":"impacted_table","expression":"`impacted_table`"},
+                {"name":"freshness_status","expression":"`freshness_status`"},
+                {"name":"last_successful_batch_id","expression":"`last_successful_batch_id`"},
+                {"name":"serving_is_stale","expression":"`serving_is_stale`"},
+                {"name":"upstream_owner","expression":"`upstream_owner`"},
+                {"name":"upstream_contact","expression":"`upstream_contact`"}
+              ], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "table", "encodings": { "columns": [
+                {"fieldName":"pipeline_name","displayName":"Pipeline"},
+                {"fieldName":"business_process","displayName":"Process"},
+                {"fieldName":"impacted_table","displayName":"Impacted Table"},
+                {"fieldName":"freshness_status","displayName":"Freshness"},
+                {"fieldName":"last_successful_batch_id","displayName":"Last Good Batch"},
+                {"fieldName":"serving_is_stale","displayName":"Serving Stale"},
+                {"fieldName":"upstream_owner","displayName":"Owner"},
+                {"fieldName":"upstream_contact","displayName":"Contact"}
+              ] } } },
+          "position": { "x": 0, "y": 9, "width": 8, "height": 4 } },
+        { "widget": { "name": "table_owner_handoff_queue",
+            "queries": [{ "name": "q", "query": { "datasetName": "owner_handoff_queue_raw", "fields": [
+                {"name":"business_process","expression":"`business_process`"},
+                {"name":"impacted_table","expression":"`impacted_table`"},
+                {"name":"upstream_owner","expression":"`upstream_owner`"},
+                {"name":"upstream_contact","expression":"`upstream_contact`"},
+                {"name":"pipeline_name","expression":"`pipeline_name`"},
+                {"name":"freshness_status","expression":"`freshness_status`"},
+                {"name":"dead_letter_count","expression":"`dead_letter_count`"},
+                {"name":"recorded_at","expression":"`recorded_at`"}
+              ], "disaggregated": true } }],
+            "spec": { "version": 2, "widgetType": "table", "encodings": { "columns": [
+                {"fieldName":"business_process","displayName":"Process"},
+                {"fieldName":"impacted_table","displayName":"Impacted Table"},
+                {"fieldName":"upstream_owner","displayName":"Owner"},
+                {"fieldName":"upstream_contact","displayName":"Contact"},
+                {"fieldName":"pipeline_name","displayName":"Pipeline"},
+                {"fieldName":"freshness_status","displayName":"Freshness"},
+                {"fieldName":"dead_letter_count","displayName":"Dead-Lettered"},
+                {"fieldName":"recorded_at","displayName":"Recorded At"}
+              ] } } },
+          "position": { "x": 0, "y": 13, "width": 8, "height": 4 } }
       ]
     }
   ]

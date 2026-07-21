@@ -28,14 +28,23 @@ or more.
 """
 from __future__ import annotations
 
+from time import perf_counter
+
 from pyspark.sql import SparkSession
 from pyspark.sql.types import BooleanType, DoubleType, StringType, StructField, StructType
 
 from aml_lakehouse.common.config import resolve_env
 from aml_lakehouse.common.ingestion_metadata import new_batch_id
+from aml_lakehouse.common.ops_control import record_batch
+from aml_lakehouse.common.risk_guardrails import DataContractError, require_columns, require_non_empty
+from aml_lakehouse.common.schema_drift import record_schema_snapshot, table_fields
+from aml_lakehouse.common.structured_logging import get_logger, log_event
+from aml_lakehouse.common.upstream_registry import get_dependency_metadata
 from aml_lakehouse.matching.bulk_match import match_many_against_watchlist
 from aml_lakehouse.matching.fuzzy_match import WatchlistEntity
 from aml_lakehouse.matching.synthetic_identity import assign_synthetic_identities
+
+LOGGER = get_logger(__name__)
 
 ACCOUNT_SCHEMA = StructType(
     [
@@ -95,7 +104,9 @@ def _load_watchlist(spark: SparkSession, catalog: str) -> list[WatchlistEntity]:
 
 
 def run(spark: SparkSession, environment: str) -> dict[str, int]:
+    started = perf_counter()
     env = resolve_env(environment)
+    dependency_meta = get_dependency_metadata("build_accounts_and_matches")
 
     accounts_df = spark.sql(
         f"""
@@ -103,11 +114,30 @@ def run(spark: SparkSession, environment: str) -> dict[str, int]:
         WHERE _batch_id = (SELECT MAX(_batch_id) FROM {env.table("bronze", "txn_accounts")})
         """
     )
+    require_columns(
+        actual_columns=accounts_df.columns,
+        required_columns=["nodeid", "init_balance"],
+        dataset=env.table("bronze", "txn_accounts"),
+    )
     account_rows = accounts_df.collect()
+    require_non_empty(len(account_rows), env.table("bronze", "txn_accounts"))
+
+    drift = record_schema_snapshot(
+        spark,
+        env.table("gold", "ops_schema_drift"),
+        pipeline_name="build_accounts_and_matches",
+        table_name=env.table("bronze", "txn_accounts"),
+        fields=table_fields(spark, env.table("bronze", "txn_accounts")),
+    )
+    if drift["is_breaking"]:
+        raise DataContractError(
+            f"Breaking schema drift detected for {env.table('bronze', 'txn_accounts')}: {drift}"
+        )
     account_ids = [str(r["nodeid"]) for r in account_rows]
     balances = {str(r["nodeid"]): r["init_balance"] for r in account_rows}
 
     watchlist = _load_watchlist(spark, env.catalog)
+    require_non_empty(len(watchlist), f"{env.catalog}.silver.entity watchlist")
     watchlist_names = [(w.entity_id, w.primary_name) for w in watchlist]
 
     identities = assign_synthetic_identities(
@@ -156,6 +186,37 @@ def run(spark: SparkSession, environment: str) -> dict[str, int]:
     matches_out = spark.createDataFrame(match_records, schema=MATCH_CANDIDATE_SCHEMA)
     matches_out.write.format("delta").mode("overwrite").saveAsTable(
         env.table("silver", "match_candidate")
+    )
+
+    batch_id = new_batch_id()
+    record_batch(
+        spark,
+        env.table("gold", "ops_control"),
+        pipeline_name="build_accounts_and_matches",
+        batch_id=batch_id,
+        processed_row_count=accounts_out.count() + matches_out.count(),
+        expected_row_count=len(account_ids) + len(candidates),
+        lag_seconds=0.0,
+        dead_letter_count=0,
+        checkpoint_offset=None,
+        business_process=dependency_meta["business_process"],
+        impacted_table=dependency_meta["impacted_table"],
+        last_good_batch_age_minutes=0.0,
+        upstream_owner=dependency_meta["upstream_owner"],
+        upstream_contact=dependency_meta["upstream_contact"],
+        runtime_seconds=perf_counter() - started,
+        estimated_cloud_cost_usd=round((accounts_out.count() + matches_out.count()) * 0.000001, 6),
+    )
+
+    log_event(
+        LOGGER,
+        "build_accounts_and_matches.completed",
+        pipeline_name="build_accounts_and_matches",
+        batch_id=batch_id,
+        accounts=len(account_ids),
+        watchlist_entities=len(watchlist),
+        matches=matches_out.count(),
+        seeded_collisions=sum(1 for i in identities if i.is_seeded_collision),
     )
 
     return {

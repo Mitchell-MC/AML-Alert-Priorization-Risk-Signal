@@ -28,7 +28,7 @@ neighbors AS (
   SELECT txId2 AS txId, txId1 AS neighbor_txId FROM latest_edges
 ),
 neighbor_classes AS (
-  SELECT n.txId, c.class AS neighbor_class
+  SELECT /*+ BROADCAST(c) */ n.txId, c.class AS neighbor_class
   FROM neighbors n
   LEFT JOIN latest_classes c ON n.neighbor_txId = c.txId
 ),
@@ -47,6 +47,7 @@ in_degree_agg AS (
   SELECT txId2 AS txId, count(*) AS in_degree FROM latest_edges GROUP BY txId2
 )
 SELECT
+  /*+ BROADCAST(f), BROADCAST(od), BROADCAST(ind), BROADCAST(na) */
   c.txId,
   c.class,
   f.time_step,

@@ -10,7 +10,9 @@
 --
 -- {catalog} is substituted by the calling job.
 
-CREATE OR REPLACE TABLE {catalog}.silver.transaction AS
+CREATE OR REPLACE TABLE {catalog}.silver.transaction
+PARTITIONED BY (event_date)
+AS
 SELECT DISTINCT
   sha2(
     concat_ws('-', CAST(sourceNodeId AS STRING), CAST(targetNodeId AS STRING), CAST(value AS STRING), CAST(time AS STRING)),
@@ -20,5 +22,6 @@ SELECT DISTINCT
   CAST(targetNodeId AS STRING) AS target_account_id,
   value AS amount,
   'USD' AS currency,
-  event_time
+  event_time,
+  DATE(event_time) AS event_date
 FROM {catalog}.bronze.txn_events;

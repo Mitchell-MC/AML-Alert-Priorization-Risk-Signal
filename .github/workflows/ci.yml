@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -22,10 +24,19 @@ jobs:
         run: python -m pip install -e ".[dev]"
 
       - name: Lint
-        run: ruff check src tests
+        run: ruff check src tests scripts
 
       - name: Unit tests
-        run: pytest -v
+        run: pytest -v --cov=src/aml_lakehouse --cov-report=term-missing --cov-fail-under=35
+
+      - name: AI code safety audit
+        run: python scripts/check_ai_risk_patterns.py
+
+      - name: Governance policy checks
+        run: python scripts/check_governance_policies.py
+
+      - name: Contract risk check
+        run: python scripts/check_contract_risk.py
 
       - name: Validate .sql files parse into well-formed statements
         # Lightweight pre-deploy check: every .sql file under src/ must split into at least

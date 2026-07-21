@@ -105,7 +105,10 @@ for both assumptions in full.
 5. **Build Gold**: run `gold/build_gold.sql`
 6. **Streaming**: `databricks bundle run streaming_validation_run --target dev` (drips
    AMLSim transactions through a paced producer into the Structured Streaming consumer)
-7. **Dashboard**: open `bi/AML_Dashboard.pbip` in Power BI Desktop — see
+7. **Month-end critical path**: `databricks bundle run month_end_critical_path --target dev`
+  (runs guarded publish flow with reconciliation gate checks)
+8. **Dead-letter replay (as needed)**: `databricks bundle run replay_txn_dead_letter --target dev`
+9. **Dashboard**: open `bi/AML_Dashboard.pbip` in Power BI Desktop — see
    [bi/README.md](bi/README.md)
 
 ## Project status
@@ -155,5 +158,13 @@ for both assumptions in full.
   duplicate-amplification incident: detection, root cause, fix, verification
 - [docs/05_architecture.md](docs/05_architecture.md) — architecture diagram and layer
   responsibilities
+- [docs/06_pipeline_survival_framework.md](docs/06_pipeline_survival_framework.md) —
+  fail-loud coding standards, CI gatekeepers, and governance-as-code checklist
+- [docs/07_month_end_incident_runbook.md](docs/07_month_end_incident_runbook.md) —
+  month-end triage, stakeholder communication cadence, and recovery checklist
+- [docs/08_postmortem_template.md](docs/08_postmortem_template.md) —
+  incident postmortem template with mandatory reliability-upgrade action
 - [dataset_inspection_notes.md](dataset_inspection_notes.md) — real dataset schemas, row
   counts, and every bug found during ingestion
+- [resources/ops/README.md](resources/ops/README.md) — operational SQL query pack for
+  stale-impact triage, owner handoffs, schema drift, and SLA/cost scorecards

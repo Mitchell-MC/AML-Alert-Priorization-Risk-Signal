@@ -14,34 +14,39 @@
 
 CREATE OR REPLACE TABLE {catalog}.gold.entity_risk_profile AS
 WITH as_of AS (
-  SELECT MAX(DATE(event_time)) AS as_of_date FROM {catalog}.silver.transaction
+  SELECT MAX(event_date) AS as_of_date FROM {catalog}.silver.transaction
+),
+params AS (
+  SELECT as_of_date FROM as_of
 ),
 account_txns AS (
   -- one row per (account, transaction) regardless of whether the account sent or received --
   -- both directions count toward an account's own activity-volume features.
-  SELECT source_account_id AS account_id, target_account_id AS counterparty_id, amount, event_time
+  SELECT source_account_id AS account_id, target_account_id AS counterparty_id, amount, event_time, event_date
   FROM {catalog}.silver.transaction
   UNION ALL
-  SELECT target_account_id AS account_id, source_account_id AS counterparty_id, amount, event_time
+  SELECT target_account_id AS account_id, source_account_id AS counterparty_id, amount, event_time, event_date
   FROM {catalog}.silver.transaction
 ),
 features AS (
   SELECT
     account_id,
-    COUNT(CASE WHEN event_time >= (SELECT as_of_date FROM as_of) - INTERVAL 1 DAY THEN 1 END) AS velocity_1d,
-    COUNT(CASE WHEN event_time >= (SELECT as_of_date FROM as_of) - INTERVAL 7 DAY THEN 1 END) AS velocity_7d,
-    COUNT(CASE WHEN event_time >= (SELECT as_of_date FROM as_of) - INTERVAL 30 DAY THEN 1 END) AS velocity_30d,
-    COUNT(DISTINCT CASE WHEN event_time >= (SELECT as_of_date FROM as_of) - INTERVAL 30 DAY THEN counterparty_id END) AS counterparty_diversity_30d,
-    SUM(CASE WHEN amount = ROUND(amount, 0) AND event_time >= (SELECT as_of_date FROM as_of) - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS round_dollar_count_30d,
-    COUNT(CASE WHEN event_time >= (SELECT as_of_date FROM as_of) - INTERVAL 30 DAY THEN 1 END) AS total_30d
+    COUNT(CASE WHEN event_time >= p.as_of_date - INTERVAL 1 DAY THEN 1 END) AS velocity_1d,
+    COUNT(CASE WHEN event_time >= p.as_of_date - INTERVAL 7 DAY THEN 1 END) AS velocity_7d,
+    COUNT(CASE WHEN event_time >= p.as_of_date - INTERVAL 30 DAY THEN 1 END) AS velocity_30d,
+    COUNT(DISTINCT CASE WHEN event_time >= p.as_of_date - INTERVAL 30 DAY THEN counterparty_id END) AS counterparty_diversity_30d,
+    SUM(CASE WHEN amount = ROUND(amount, 0) AND event_time >= p.as_of_date - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS round_dollar_count_30d,
+    COUNT(CASE WHEN event_time >= p.as_of_date - INTERVAL 30 DAY THEN 1 END) AS total_30d
   FROM account_txns
+  CROSS JOIN params p
   GROUP BY account_id
 ),
 daily_counts AS (
-  SELECT account_id, DATE(event_time) AS txn_date, COUNT(*) AS daily_count
+  SELECT account_id, event_date AS txn_date, COUNT(*) AS daily_count
   FROM account_txns
-  WHERE event_time >= (SELECT as_of_date FROM as_of) - INTERVAL 30 DAY
-  GROUP BY account_id, DATE(event_time)
+  CROSS JOIN params p
+  WHERE event_date >= p.as_of_date - INTERVAL 30 DAY
+  GROUP BY account_id, event_date
 ),
 burst AS (
   -- burst_flag: any single day in the last 30 has more than 3x the account's own 30-day
@@ -59,7 +64,7 @@ risky_accounts AS (
   WHERE match_confidence_band IN ('exact', 'strong')
 ),
 counterparty_exposure AS (
-  SELECT DISTINCT t.account_id
+  SELECT /*+ BROADCAST(r) */ DISTINCT t.account_id
   FROM account_txns t
   JOIN risky_accounts r ON t.counterparty_id = r.account_id
 ),
@@ -77,10 +82,10 @@ watchlist_summary AS (
   GROUP BY account_id
 ),
 joined AS (
-  SELECT
+  SELECT /*+ BROADCAST(n), BROADCAST(ws) */
     a.account_id AS entity_id,
     a.account_id,
-    (SELECT as_of_date FROM as_of) AS as_of_date,
+    p.as_of_date,
     COALESCE(f.velocity_1d, 0) AS velocity_1d,
     COALESCE(f.velocity_7d, 0) AS velocity_7d,
     COALESCE(f.velocity_30d, 0) AS velocity_30d,
@@ -92,6 +97,7 @@ joined AS (
     COALESCE(ws.best_band_rank, 0) AS best_band_rank,
     COALESCE(ws.match_count, 0) AS watchlist_match_count
   FROM {catalog}.silver.account a
+  CROSS JOIN params p
   LEFT JOIN features f ON a.account_id = f.account_id
   LEFT JOIN burst b ON a.account_id = b.account_id
   LEFT JOIN counterparty_exposure ce ON a.account_id = ce.account_id
@@ -111,6 +117,15 @@ scored AS (
     CASE WHEN risky_counterparty_exposure THEN 20 ELSE 0 END AS pts_risky_counterparty,
     CASE WHEN network_risk_exposure IS NOT NULL AND network_risk_exposure > 0.5 THEN 15 ELSE 0 END AS pts_network_risk
   FROM joined
+),
+final_scored AS (
+  SELECT
+    *,
+    LEAST(
+      100,
+      pts_watchlist + pts_velocity + pts_diversity + pts_round_dollar + pts_burst + pts_risky_counterparty + pts_network_risk
+    ) AS composite_risk_score
+  FROM scored
 )
 SELECT
   entity_id,
@@ -126,13 +141,10 @@ SELECT
   network_risk_exposure,
   best_band_rank,
   watchlist_match_count,
-  LEAST(
-    100,
-    pts_watchlist + pts_velocity + pts_diversity + pts_round_dollar + pts_burst + pts_risky_counterparty + pts_network_risk
-  ) AS composite_risk_score,
+  composite_risk_score,
   CASE
-    WHEN LEAST(100, pts_watchlist + pts_velocity + pts_diversity + pts_round_dollar + pts_burst + pts_risky_counterparty + pts_network_risk) >= 70 THEN 'high'
-    WHEN LEAST(100, pts_watchlist + pts_velocity + pts_diversity + pts_round_dollar + pts_burst + pts_risky_counterparty + pts_network_risk) >= 40 THEN 'medium'
+    WHEN composite_risk_score >= 70 THEN 'high'
+    WHEN composite_risk_score >= 40 THEN 'medium'
     ELSE 'low'
   END AS score_band,
   filter(
@@ -147,7 +159,7 @@ SELECT
     ),
     x -> x IS NOT NULL
   ) AS top_contributing_factors
-FROM scored;
+FROM final_scored;
 
 
 CREATE OR REPLACE TABLE {catalog}.gold.prioritized_alert_queue AS
@@ -194,3 +206,25 @@ SELECT
   e.entity_type AS risk_type
 FROM agg a
 JOIN {catalog}.silver.entity e ON a.watchlist_entity_id = e.entity_id;
+
+
+CREATE OR REPLACE VIEW {catalog}.gold.month_end_reconciliation_serving AS
+WITH latest_publish AS (
+  SELECT
+    batch_id AS as_of_batch_id,
+    freshness_status,
+    COALESCE(last_good_batch_age_minutes, lag_seconds / 60.0) AS last_good_batch_age_minutes,
+    recorded_at
+  FROM {catalog}.gold.ops_control
+  WHERE pipeline_name = 'gold_month_end_publish'
+  ORDER BY recorded_at DESC
+  LIMIT 1
+)
+SELECT
+  p.*,
+  lp.as_of_batch_id,
+  COALESCE(lp.freshness_status, 'degraded') != 'fresh' AS is_stale,
+  lp.last_good_batch_age_minutes,
+  lp.recorded_at AS serving_metadata_recorded_at
+FROM {catalog}.gold.entity_risk_profile p
+CROSS JOIN latest_publish lp;

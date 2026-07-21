@@ -32,6 +32,8 @@ special case. A provisioned (non-serverless) cluster would support a true always
 """
 from __future__ import annotations
 
+from time import perf_counter
+
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.streaming import StreamingQuery
@@ -40,7 +42,11 @@ from pyspark.sql.types import StringType, StructField, StructType, TimestampType
 from aml_lakehouse.common.config import resolve_env
 from aml_lakehouse.common.ingestion_metadata import IngestionMetadata
 from aml_lakehouse.common.ops_control import record_batch
+from aml_lakehouse.common.risk_guardrails import require_invalid_ratio_below
+from aml_lakehouse.common.schema_drift import record_schema_snapshot, table_fields
+from aml_lakehouse.common.structured_logging import get_logger, log_event
 from aml_lakehouse.common.time_anchor import step_to_event_time
+from aml_lakehouse.common.upstream_registry import get_dependency_metadata
 
 RAW_SCHEMA = StructType(
     [
@@ -53,6 +59,8 @@ RAW_SCHEMA = StructType(
 
 WATERMARK_DELAY = "10 minutes"
 SCHEMA_VERSION = "1.0"
+MAX_INVALID_RATIO = 0.10
+LOGGER = get_logger(__name__)
 
 
 @F.udf(returnType=TimestampType())
@@ -124,6 +132,8 @@ def _merge_append(spark: SparkSession, source_df: DataFrame, target_table: str) 
 
 def _make_process_batch(spark: SparkSession, env, metadata: IngestionMetadata):
     def process_batch(batch_df: DataFrame, batch_id: int) -> None:
+        started = perf_counter()
+        dependency_meta = get_dependency_metadata("txn_stream_ingest")
         # No .persist() here -- serverless compute rejects it outright
         # ([NOT_SUPPORTED_WITH_SERVERLESS] PERSIST TABLE is not supported), confirmed by an
         # actual failed run. valid_df/invalid_df get recomputed from batch_df on each action
@@ -133,6 +143,23 @@ def _make_process_batch(spark: SparkSession, env, metadata: IngestionMetadata):
 
         processed_count = valid_df.count()
         dead_letter_count = invalid_df.count()
+        invalid_ratio = require_invalid_ratio_below(
+            valid_count=processed_count,
+            invalid_count=dead_letter_count,
+            max_invalid_ratio=MAX_INVALID_RATIO,
+            dataset="bronze.txn_events stream",
+        )
+
+        log_event(
+            LOGGER,
+            "txn_stream_ingest.batch_quality",
+            pipeline_name="txn_stream_ingest",
+            batch_id=str(batch_id),
+            processed_count=processed_count,
+            dead_letter_count=dead_letter_count,
+            invalid_ratio=round(invalid_ratio, 6),
+            circuit_breaker_max_invalid_ratio=MAX_INVALID_RATIO,
+        )
 
         if processed_count > 0:
             # try_cast again here even though these rows already passed _is_valid -- cheap
@@ -179,6 +206,41 @@ def _make_process_batch(spark: SparkSession, env, metadata: IngestionMetadata):
             lag_seconds=lag_seconds,
             dead_letter_count=dead_letter_count,
             checkpoint_offset=str(batch_id),
+            business_process=dependency_meta["business_process"],
+            impacted_table=dependency_meta["impacted_table"],
+            last_good_batch_age_minutes=(lag_seconds / 60.0 if lag_seconds != float("inf") else None),
+            upstream_owner=dependency_meta["upstream_owner"],
+            upstream_contact=dependency_meta["upstream_contact"],
+            runtime_seconds=perf_counter() - started,
+            estimated_cloud_cost_usd=round(processed_count * 0.000002, 6),
+        )
+
+        if processed_count > 0 and spark.catalog.tableExists(env.table("bronze", "txn_events")):
+            drift = record_schema_snapshot(
+                spark,
+                env.table("gold", "ops_schema_drift"),
+                pipeline_name="txn_stream_ingest",
+                table_name=env.table("bronze", "txn_events"),
+                fields=table_fields(spark, env.table("bronze", "txn_events")),
+            )
+            log_event(
+                LOGGER,
+                "txn_stream_ingest.schema_snapshot",
+                pipeline_name="txn_stream_ingest",
+                table_name=env.table("bronze", "txn_events"),
+                is_breaking=drift["is_breaking"],
+                previous_hash=drift["previous_hash"],
+                current_hash=drift["current_hash"],
+            )
+
+        log_event(
+            LOGGER,
+            "txn_stream_ingest.batch_complete",
+            pipeline_name="txn_stream_ingest",
+            batch_id=str(batch_id),
+            lag_seconds=lag_seconds,
+            processed_count=processed_count,
+            dead_letter_count=dead_letter_count,
         )
 
     return process_batch

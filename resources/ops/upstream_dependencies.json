@@ -1,0 +1,26 @@
+{
+  "txn_stream_ingest": {
+    "business_process": "month_close",
+    "impacted_table": "bronze.txn_events",
+    "upstream_owner": "Payments Platform",
+    "upstream_contact": "#payments-platform-oncall"
+  },
+  "build_accounts_and_matches": {
+    "business_process": "reconciliation_enrichment",
+    "impacted_table": "silver.match_candidate",
+    "upstream_owner": "AML Data Engineering",
+    "upstream_contact": "#aml-data-eng"
+  },
+  "build_network_risk_reference": {
+    "business_process": "risk_scoring",
+    "impacted_table": "silver.network_risk_reference",
+    "upstream_owner": "Risk Analytics",
+    "upstream_contact": "#risk-analytics"
+  },
+  "gold_month_end_publish": {
+    "business_process": "month_close",
+    "impacted_table": "gold.entity_risk_profile",
+    "upstream_owner": "Finance Data Products",
+    "upstream_contact": "#finance-data"
+  }
+}
