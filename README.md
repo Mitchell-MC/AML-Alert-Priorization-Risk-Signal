@@ -31,6 +31,11 @@ per-layer responsibilities in [docs/05_architecture.md](docs/05_architecture.md)
   detection.
 - **Serving** — a Power BI project (`bi/AML_Dashboard.pbip`) for investigator triage,
   sanctions/PEP exposure, and pipeline ops health.
+- **Reliability (cross-cutting)** — a fail-loud survival framework spanning every layer:
+  risk guardrails and schema-drift detection, structured logging, an upstream-dependency
+  registry, a gated month-end publish path, dead-letter replay, and governance-as-code CI
+  gates (AI-risk, governance-policy, and contract-risk check scripts run on every push). See
+  [docs/06_pipeline_survival_framework.md](docs/06_pipeline_survival_framework.md).
 
 Full schema contracts in [docs/03_schema_contracts.md](docs/03_schema_contracts.md).
 
@@ -129,6 +134,12 @@ for both assumptions in full.
 - [x] CI/CD deploy jobs live-tested — pushed to GitHub, secrets wired up, `deploy-dev`
       confirmed passing on a real Actions run (`deploy-prod-sim` gated behind a required
       reviewer + tag-only policy, correctly skipped on this push)
+- [x] Pipeline survival framework — fail-loud risk guardrails, schema-drift detection,
+      structured logging, upstream-dependency registry, gated month-end critical-path job,
+      and dead-letter replay, all covered by passing reliability test suites
+- [x] Governance-as-code CI gates — AI-risk, governance-policy, and contract-risk check
+      scripts wired into the workflow and passing, plus an operational SQL query pack
+      ([resources/ops/README.md](resources/ops/README.md)) and month-end incident runbook
 - [x] Power BI semantic model — 5 tables wired to real `aml_dev` schema, 13 DAX measures,
       confirmed loading correctly in real Power BI Desktop (all tables visible, structure
       intact) after fixing a missing `version.json` found via an actual open attempt
