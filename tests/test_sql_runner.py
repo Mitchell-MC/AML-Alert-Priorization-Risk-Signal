@@ -25,16 +25,18 @@ def test_load_statements_applies_substitutions(tmp_path):
     assert "{catalog}" not in statements[0]
 
 
-def test_real_build_entities_sql_splits_into_three_statements():
-    # statement 0 legitimately carries the file's leading comment block as a prefix -- that's
-    # harmless for spark.sql() (SQL comments are valid before a DDL statement), so this
-    # checks containment, not startswith.
+def test_real_build_entities_sql_splits_into_five_statements():
+    # Now 5: the SCD2 entity_type_map is created + seeded (2 statements) before the three
+    # entity tables are built. Statement 0 legitimately carries the file's leading comment
+    # block as a prefix -- harmless for spark.sql() -- so this checks containment, not startswith.
     sql_path = REPO_ROOT / "src" / "aml_lakehouse" / "silver" / "build_entities.sql"
     statements = load_statements(str(sql_path), catalog="aml_dev")
-    assert len(statements) == 3
-    assert "CREATE OR REPLACE TABLE aml_dev.silver.entity AS" in statements[0]
-    assert statements[1].startswith("CREATE OR REPLACE TABLE aml_dev.silver.entity_alias AS")
-    assert statements[2].startswith("CREATE OR REPLACE TABLE aml_dev.silver.entity_address AS")
+    assert len(statements) == 5
+    assert "CREATE TABLE IF NOT EXISTS aml_dev.silver.entity_type_map" in statements[0]
+    assert statements[1].startswith("INSERT INTO aml_dev.silver.entity_type_map")
+    assert "CREATE OR REPLACE TABLE aml_dev.silver.entity AS" in statements[2]
+    assert statements[3].startswith("CREATE OR REPLACE TABLE aml_dev.silver.entity_alias AS")
+    assert statements[4].startswith("CREATE OR REPLACE TABLE aml_dev.silver.entity_address AS")
     assert "{catalog}" not in "".join(statements)
 
 
@@ -53,6 +55,17 @@ def test_gold_and_elliptic_sql_include_plan_hints():
     assert "BROADCAST(f), BROADCAST(od), BROADCAST(ind), BROADCAST(na)" in elliptic_sql
 
 
+def test_gold_tables_declare_liquid_clustering_and_file_sizing():
+    gold_sql = (REPO_ROOT / "src" / "aml_lakehouse" / "gold" / "build_gold.sql").read_text()
+
+    # clustering keys match the columns the tables are filtered/drilled by
+    assert "CLUSTER BY (score_band, account_id)" in gold_sql
+    assert "CLUSTER BY (status, escalation_reason)" in gold_sql
+    # explicit file sizing + auto-optimize so OPTIMIZE targets ~128MB and small files compact
+    assert gold_sql.count("'delta.targetFileSize' = '134217728'") >= 2
+    assert "'delta.autoOptimize.autoCompact' = 'true'" in gold_sql
+
+
 def test_transaction_sql_partitions_by_event_date():
     txn_sql = (
         REPO_ROOT / "src" / "aml_lakehouse" / "silver" / "build_transactions.sql"
@@ -60,3 +73,5 @@ def test_transaction_sql_partitions_by_event_date():
 
     assert "PARTITIONED BY (event_date)" in txn_sql
     assert "DATE(event_time) AS event_date" in txn_sql
+    # partitioned time-series fact still gets file-size control to avoid small-file confetti
+    assert "'delta.targetFileSize' = '134217728'" in txn_sql

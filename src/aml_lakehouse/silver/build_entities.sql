@@ -13,6 +13,35 @@
 --
 -- {catalog} is substituted by the calling job per docs/02_environment_and_branching.md
 -- (aml_dev / aml_test / aml_prod_sim).
+--
+-- Table-driven entity_type reconciliation (docs/13_table_driven_config.md): the source ->
+-- unified vocabulary mapping lives in silver.entity_type_map (an SCD2 reference table) rather
+-- than hard-coded CASE logic, so a new source value is a table row, not a code change. The
+-- create + seed below is idempotent (IF NOT EXISTS + insert-only-when-empty), so it never
+-- wipes SCD2 history on a rebuild -- unlike the CREATE OR REPLACE data tables that follow.
+
+CREATE TABLE IF NOT EXISTS {catalog}.silver.entity_type_map (
+  source_system STRING,
+  source_value STRING,
+  unified_value STRING,
+  valid_from DATE,
+  valid_to DATE,
+  is_current BOOLEAN,
+  description STRING
+);
+
+INSERT INTO {catalog}.silver.entity_type_map
+SELECT * FROM (VALUES
+  ('ofac', 'individual', 'person', DATE'2026-01-01', CAST(NULL AS DATE), true, 'OFAC sdn_type individual -> person'),
+  ('ofac', 'vessel', 'vessel', DATE'2026-01-01', CAST(NULL AS DATE), true, 'OFAC sdn_type vessel'),
+  ('ofac', 'aircraft', 'aircraft', DATE'2026-01-01', CAST(NULL AS DATE), true, 'OFAC sdn_type aircraft'),
+  ('ofac', '', 'organization', DATE'2026-01-01', CAST(NULL AS DATE), true, 'OFAC null/blank/-0- sdn_type -> organization (default)'),
+  ('opensanctions', 'Person', 'person', DATE'2026-01-01', CAST(NULL AS DATE), true, 'OpenSanctions schema Person -> person'),
+  ('opensanctions', 'Organization', 'organization', DATE'2026-01-01', CAST(NULL AS DATE), true, 'OpenSanctions schema Organization -> organization'),
+  ('opensanctions', 'Vessel', 'vessel', DATE'2026-01-01', CAST(NULL AS DATE), true, 'OpenSanctions schema Vessel -> vessel'),
+  ('opensanctions', 'Airplane', 'aircraft', DATE'2026-01-01', CAST(NULL AS DATE), true, 'OpenSanctions schema Airplane -> aircraft')
+) AS v(source_system, source_value, unified_value, valid_from, valid_to, is_current, description)
+WHERE NOT EXISTS (SELECT 1 FROM {catalog}.silver.entity_type_map);
 
 CREATE OR REPLACE TABLE {catalog}.silver.entity AS
 WITH latest_ofac_sdn AS (
@@ -32,13 +61,10 @@ ofac_entities AS (
     'ofac' AS source_system,
     ent_num AS source_entity_id,
     NULLIF(sdn_name, '-0-') AS primary_name,
-    CASE
-      WHEN sdn_type = 'individual' THEN 'person'
-      WHEN sdn_type = 'vessel' THEN 'vessel'
-      WHEN sdn_type = 'aircraft' THEN 'aircraft'
-      WHEN sdn_type IS NULL OR sdn_type IN ('', '-0-') THEN 'organization'
-      ELSE 'other'
-    END AS entity_type,
+    -- entity_type via silver.entity_type_map (was a hard-coded CASE). The key normalizes
+    -- NULL / '' / '-0-' to '' so all three hit the 'organization' default row; any value with
+    -- no mapping row falls through to 'other', exactly as the original CASE's ELSE did.
+    COALESCE(m.unified_value, 'other') AS entity_type,
     NULLIF(program, '-0-') AS watchlist_program,
     -- OFAC's SDN.CSV has no dedicated DOB column -- individuals' DOBs are embedded as free
     -- text inside `remarks` (e.g. "DOB 01 Jan 1970"). Not regex-extracted in v1; documented
@@ -46,7 +72,11 @@ ofac_entities AS (
     CAST(NULL AS STRING) AS birth_date,
     CAST(NULL AS ARRAY<STRING>) AS countries,
     true AS is_watchlist
-  FROM latest_ofac_sdn
+  FROM latest_ofac_sdn s
+  LEFT JOIN {catalog}.silver.entity_type_map m
+    ON m.source_system = 'ofac'
+   AND m.source_value = COALESCE(NULLIF(s.sdn_type, '-0-'), '')
+   AND m.is_current
 ),
 latest_sanctions AS (
   SELECT *, 'opensanctions_sanctions' AS source_system FROM {catalog}.bronze.opensanctions_sanctions
@@ -62,18 +92,16 @@ opensanctions_entities AS (
     source_system,
     id AS source_entity_id,
     name AS primary_name,
-    CASE
-      WHEN schema = 'Person' THEN 'person'
-      WHEN schema = 'Organization' THEN 'organization'
-      WHEN schema = 'Vessel' THEN 'vessel'
-      WHEN schema = 'Airplane' THEN 'aircraft'
-      ELSE 'other'
-    END AS entity_type,
+    -- entity_type via silver.entity_type_map (was a hard-coded CASE), keyed on OpenSanctions'
+    -- `schema` value; unmapped schemas fall through to 'other' as the original CASE's ELSE did.
+    COALESCE(m.unified_value, 'other') AS entity_type,
     program_ids AS watchlist_program,
     NULLIF(trim(birth_date), '') AS birth_date,
     CASE WHEN countries IS NULL OR trim(countries) = '' THEN NULL ELSE split(countries, ';') END AS countries,
     true AS is_watchlist
-  FROM (SELECT * FROM latest_sanctions UNION ALL SELECT * FROM latest_peps)
+  FROM (SELECT * FROM latest_sanctions UNION ALL SELECT * FROM latest_peps) x
+  LEFT JOIN {catalog}.silver.entity_type_map m
+    ON m.source_system = 'opensanctions' AND m.source_value = x.schema AND m.is_current
 )
 SELECT * FROM ofac_entities
 UNION ALL

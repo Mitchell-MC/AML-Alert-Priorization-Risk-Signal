@@ -87,6 +87,20 @@ linkage is disclosed.
 requirement in `docs/01_nonfunctional_requirements.md` — every ranked alert must show its
 work, not just its score.
 
+## Reference / config tables (SCD2, table-driven design)
+
+Policy and mapping logic lives in these SCD2 tables, not hard-coded in the transforms, so a
+change is a table row (with begin/end-dated lineage) rather than a code change. See
+[docs/13_table_driven_config.md](13_table_driven_config.md). Both carry the SCD2 columns
+`valid_from` (date), `valid_to` (date, NULL = open/current), `is_current` (boolean); the
+pipeline reads `WHERE is_current`. Created idempotently (`IF NOT EXISTS` + seed-only-when-empty)
+so rebuilds never wipe history.
+
+| Table | Grain | Key columns | Notes |
+|---|---|---|---|
+| `silver.entity_type_map` | one row per (source, source value) version | `source_system`, `source_value` | Maps OFAC `sdn_type` / OpenSanctions `schema` → the unified `entity_type` vocabulary (`person`/`organization`/`vessel`/`aircraft`/`other`). `source_system` is the logical source (`ofac` / `opensanctions`); the OFAC `''` row is the null/blank/`-0-` → `organization` default. Drives `silver.entity.entity_type` via a `LEFT JOIN` (unmapped values → `other`) |
+| `gold.scoring_rule` | one row per rule version | `rule_key` | `rule_value` (double) holds every composite-score weight, threshold, band cutoff, and the alert-inclusion cutoff. `build_gold.sql` pivots the current rows into scalars and cross-joins them into the scoring — so `top_contributing_factors` and `composite_risk_score` are computed from the table. v1 seed values equal the prior hard-coded literals exactly (locked by `tests/test_reference_config.py`) |
+
 ## Open items to resolve before Bronze DDL is written for real
 
 - Exact normalization rules for `entity_type` reconciliation (OFAC vocabulary → OpenSanctions

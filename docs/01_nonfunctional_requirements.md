@@ -54,6 +54,12 @@ controls.
 - `SIMULATED-PII` — synthetic customer identity fields (name, address, DOB)
 - `INTERNAL` — risk scores, alert rationale, match explanations
 
+The per-layer ownership matrix, least-privilege access model, and the column masks / row
+filters / classification tags that enforce these treatments are specified as runnable Unity
+Catalog DDL in [docs/09_ownership_and_access_model.md](09_ownership_and_access_model.md) and
+`resources/ddl/01_ownership_and_access.sql` (design-intent on Free Edition, which has no
+groups to grant to).
+
 ## Audit requirements
 
 - Every alert's score must be explainable: persist which specific factors contributed

@@ -1,0 +1,24 @@
+resources:
+  jobs:
+    table_maintenance:
+      name: aml_table_maintenance
+      # Daily off-peak compaction + clustering + vacuum. On serverless this complements any
+      # predictive optimization; on classic clusters it is the primary compaction path.
+      # See docs/12_performance_and_layout.md.
+      schedule:
+        quartz_cron_expression: "0 0 8 * * ?"  # 08:00 UTC daily
+        timezone_id: "UTC"
+        pause_status: UNPAUSED
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - ../../dist/*.whl
+      tasks:
+        - task_key: maintain_tables
+          environment_key: default
+          spark_python_task:
+            python_file: ../../src/aml_lakehouse/maintenance/run_table_maintenance.py
+            parameters:
+              - "${bundle.target}"

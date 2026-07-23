@@ -37,7 +37,7 @@ from time import perf_counter
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.streaming import StreamingQuery
-from pyspark.sql.types import StringType, StructField, StructType, TimestampType
+from pyspark.sql.types import StringType, StructField, StructType
 
 from aml_lakehouse.common.config import resolve_env
 from aml_lakehouse.common.ingestion_metadata import IngestionMetadata
@@ -45,7 +45,7 @@ from aml_lakehouse.common.ops_control import record_batch
 from aml_lakehouse.common.risk_guardrails import require_invalid_ratio_below
 from aml_lakehouse.common.schema_drift import record_schema_snapshot, table_fields
 from aml_lakehouse.common.structured_logging import get_logger, log_event
-from aml_lakehouse.common.time_anchor import step_to_event_time
+from aml_lakehouse.common.time_anchor import step_to_event_time_expr
 from aml_lakehouse.common.upstream_registry import get_dependency_metadata
 
 RAW_SCHEMA = StructType(
@@ -61,13 +61,6 @@ WATERMARK_DELAY = "10 minutes"
 SCHEMA_VERSION = "1.0"
 MAX_INVALID_RATIO = 0.10
 LOGGER = get_logger(__name__)
-
-
-@F.udf(returnType=TimestampType())
-def _step_to_event_time_udf(step):
-    if step is None:
-        return None
-    return step_to_event_time(int(step))
 
 
 def _add_validity_and_event_time(raw_stream: DataFrame) -> DataFrame:
@@ -91,7 +84,7 @@ def _add_validity_and_event_time(raw_stream: DataFrame) -> DataFrame:
     is_valid = F.coalesce(source_valid & target_valid & value_valid & time_valid, F.lit(False))
 
     enriched = raw_stream.withColumn("_is_valid", is_valid).withColumn(
-        "event_time", _step_to_event_time_udf(F.expr("try_cast(time AS INT)"))
+        "event_time", F.expr(step_to_event_time_expr("try_cast(time AS INT)"))
     )
     # Invalid rows may have a null event_time (unparseable time); coalesce to current
     # processing time so the watermark still advances even on a batch that's all garbage.

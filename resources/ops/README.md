@@ -18,6 +18,9 @@ Use them during month-end or incident response to quickly answer:
 - `owner_handoff_queue.sql`: ownership/routing queue for escalations
 - `cost_sla_scorecard.sql`: SLA and estimated cost scorecard over recent runs
 - `schema_drift_breaking_changes.sql`: latest breaking schema-drift events
+- `day_over_day_variance.sql`: attributes "why did today's number change?" by diffing the
+  current Gold version against the prior one via Delta time travel (see
+  [docs/11_failure_scenario_map.md](../../docs/11_failure_scenario_map.md))
 
 ## Usage
 

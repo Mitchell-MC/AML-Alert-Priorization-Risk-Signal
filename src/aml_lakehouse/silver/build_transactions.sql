@@ -10,8 +10,17 @@
 --
 -- {catalog} is substituted by the calling job.
 
+-- Stays PARTITIONED BY event_date (a bounded, low-cardinality time key) rather than liquid
+-- clustering: this is the classic time-series fact where date-range pruning is the dominant
+-- access pattern. File-size + auto-optimize properties keep the per-partition files compacted
+-- so partitioning doesn't degrade into small-file confetti. See docs/12_performance_and_layout.md.
 CREATE OR REPLACE TABLE {catalog}.silver.transaction
 PARTITIONED BY (event_date)
+TBLPROPERTIES (
+  'delta.targetFileSize' = '134217728',
+  'delta.autoOptimize.optimizeWrite' = 'true',
+  'delta.autoOptimize.autoCompact' = 'true'
+)
 AS
 SELECT DISTINCT
   sha2(

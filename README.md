@@ -113,6 +113,9 @@ for both assumptions in full.
 7. **Month-end critical path**: `databricks bundle run month_end_critical_path --target dev`
   (runs guarded publish flow with reconciliation gate checks)
 8. **Dead-letter replay (as needed)**: `databricks bundle run replay_txn_dead_letter --target dev`
+8b. **Table maintenance** (scheduled daily; run on demand with
+   `databricks bundle run table_maintenance --target dev`) — compaction/clustering/VACUUM,
+   see [docs/12_performance_and_layout.md](docs/12_performance_and_layout.md)
 9. **Dashboard**: open `bi/AML_Dashboard.pbip` in Power BI Desktop — see
    [bi/README.md](bi/README.md)
 
@@ -175,6 +178,20 @@ for both assumptions in full.
   month-end triage, stakeholder communication cadence, and recovery checklist
 - [docs/08_postmortem_template.md](docs/08_postmortem_template.md) —
   incident postmortem template with mandatory reliability-upgrade action
+- [docs/09_ownership_and_access_model.md](docs/09_ownership_and_access_model.md) — per-layer
+  ownership matrix, least-privilege access model, PII column masking, and row filtering
+  (design-intent DDL in [resources/ddl/01_ownership_and_access.sql](resources/ddl/01_ownership_and_access.sql))
+- [docs/10_architecture_decisions.md](docs/10_architecture_decisions.md) — every load-bearing
+  design decision as a defensible narrative (needed X → chose Y because Z → trade-off W →
+  mitigated by V)
+- [docs/11_failure_scenario_map.md](docs/11_failure_scenario_map.md) — per-pipeline blast
+  radius for schema-change / stale-dashboard / "why did the number change" failure modes
+- [docs/12_performance_and_layout.md](docs/12_performance_and_layout.md) — partitioning /
+  liquid clustering, compaction, VACUUM, engine-tier (built-in vs UDF) discipline, and the
+  serverless-vs-classic verdict for every tuning knob
+- [docs/13_table_driven_config.md](docs/13_table_driven_config.md) — SCD2 table-driven config:
+  scoring weights/thresholds (`gold.scoring_rule`) and the entity-type vocabulary
+  (`silver.entity_type_map`) live in versioned tables, changed without a code deploy
 - [dataset_inspection_notes.md](dataset_inspection_notes.md) — real dataset schemas, row
   counts, and every bug found during ingestion
 - [resources/ops/README.md](resources/ops/README.md) — operational SQL query pack for
