@@ -1,16 +1,20 @@
 -- Day-over-day variance: "why did today's number change?"
 --
 -- Answers the stakeholder question in plain English by attributing the change in the Gold
--- outputs between two runs. Because gold.prioritized_alert_queue and gold.entity_risk_profile
--- are CREATE OR REPLACE (one as_of_date per run), there is no in-table history to diff, so
--- this uses Delta time travel to compare the current table version against the prior version.
+-- outputs between two runs. gold.prioritized_alert_queue and gold.entity_risk_profile are
+-- CREATE OR REPLACE (current-state only, one as_of_date per run) -- see docs/03_schema_contracts.md
+-- -- so this originally used Delta time travel to diff runs. Delta time travel is a fragile way
+-- to answer an audit question, though: VACUUM or a retention policy can expire the prior
+-- version out from under you. gold.entity_risk_profile_history and
+-- gold.prioritized_alert_queue_history now hold that history durably (append-only, never
+-- replaced), so queries A-C below read from the history tables directly instead of
+-- VERSION AS OF. The old time-travel form still works as a fallback if a history table is ever
+-- unavailable; substitute back VERSION AS OF {{prev_version}} in that case.
 --
 -- Usage:
 --   1. Replace {{catalog}} with your environment catalog (aml_dev / aml_test / aml_prod_sim).
---   2. Find the previous version number:
---        DESCRIBE HISTORY {{catalog}}.gold.prioritized_alert_queue;
---      Take the version *before* the latest write and substitute it for {{prev_version}}
---      below (and the matching one for entity_risk_profile in query C).
+--   2. Pick the two as_of_date / generated_at dates to compare and substitute them for
+--      {{curr_date}} / {{prev_date}} below.
 --   3. Run in a Databricks SQL warehouse.
 
 -- ---------------------------------------------------------------------------
@@ -20,12 +24,14 @@
 -- ---------------------------------------------------------------------------
 WITH curr AS (
   SELECT escalation_reason, COUNT(*) AS alert_count
-  FROM {{catalog}}.gold.prioritized_alert_queue
+  FROM {{catalog}}.gold.prioritized_alert_queue_history
+  WHERE CAST(generated_at AS DATE) = DATE'{{curr_date}}'
   GROUP BY escalation_reason
 ),
 prev AS (
   SELECT escalation_reason, COUNT(*) AS alert_count
-  FROM {{catalog}}.gold.prioritized_alert_queue VERSION AS OF {{prev_version}}
+  FROM {{catalog}}.gold.prioritized_alert_queue_history
+  WHERE CAST(generated_at AS DATE) = DATE'{{prev_date}}'
   GROUP BY escalation_reason
 )
 SELECT
@@ -43,11 +49,13 @@ ORDER BY ABS(COALESCE(curr.alert_count, 0) - COALESCE(prev.alert_count, 0)) DESC
 -- ---------------------------------------------------------------------------
 WITH curr AS (
   SELECT entity_id, account_id, composite_risk_score
-  FROM {{catalog}}.gold.prioritized_alert_queue
+  FROM {{catalog}}.gold.prioritized_alert_queue_history
+  WHERE CAST(generated_at AS DATE) = DATE'{{curr_date}}'
 ),
 prev AS (
   SELECT entity_id, account_id
-  FROM {{catalog}}.gold.prioritized_alert_queue VERSION AS OF {{prev_version}}
+  FROM {{catalog}}.gold.prioritized_alert_queue_history
+  WHERE CAST(generated_at AS DATE) = DATE'{{prev_date}}'
 )
 SELECT
   CASE WHEN prev.entity_id IS NULL THEN 'ENTERED' ELSE 'DROPPED' END AS change_type,
@@ -67,11 +75,13 @@ ORDER BY change_type, current_score DESC;
 -- ---------------------------------------------------------------------------
 WITH curr AS (
   SELECT entity_id, account_id, composite_risk_score, score_band
-  FROM {{catalog}}.gold.entity_risk_profile
+  FROM {{catalog}}.gold.entity_risk_profile_history
+  WHERE as_of_date = DATE'{{curr_date}}'
 ),
 prev AS (
   SELECT entity_id, account_id, composite_risk_score AS prev_score, score_band AS prev_band
-  FROM {{catalog}}.gold.entity_risk_profile VERSION AS OF {{prev_version}}
+  FROM {{catalog}}.gold.entity_risk_profile_history
+  WHERE as_of_date = DATE'{{prev_date}}'
 )
 SELECT
   curr.entity_id,

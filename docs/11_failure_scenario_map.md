@@ -64,9 +64,15 @@ stale flag clears when `freshness_status` returns to `fresh`.
 
 This is the question the project could not previously answer crisply, and the reason
 [resources/ops/day_over_day_variance.sql](../resources/ops/day_over_day_variance.sql) now
-exists. Because the Gold tables are `CREATE OR REPLACE` (one `as_of_date` per run), the query
-uses **Delta time travel** to diff the current table version against the prior version and
-attribute the change.
+exists. The Gold tables (`gold.entity_risk_profile`, `gold.prioritized_alert_queue`) are
+`CREATE OR REPLACE` — current-state only, one `as_of_date` per run — so diffing "today vs.
+yesterday" reads from `gold.entity_risk_profile_history` and
+`gold.prioritized_alert_queue_history` instead: append-only tables that accumulate one row per
+`as_of_date`/`generated_at` ever observed, per
+[docs/03_schema_contracts.md](03_schema_contracts.md). Delta time travel (`VERSION AS OF`) was
+the original approach here and still works as a fallback, but the history tables are the
+durable answer — a `VACUUM` or retention policy can expire a Delta version out from under a
+time-travel query; an append-only table cannot.
 
 **What it answers, in plain English:**
 
@@ -92,6 +98,8 @@ day-over-day delta that moved it.
 - **Reprocess from raw** — staged files persist in the Bronze Volume; Bronze is rerunnable.
 - **Dead-letter replay** — `replay_txn_dead_letter` job re-ingests quarantined rows after a fix.
 - **Idempotent reruns** — streaming sink MERGEs on natural key; Silver/Gold are `CREATE OR REPLACE`.
+  Reviewer dispositions (`gold.alert_disposition`) and Gold history tables survive a rerun
+  regardless — they're insert-only/append-only, not part of the replaced tables.
 - **Gated publish** — `build_gold_with_gate.py` blocks a month-end publish that fails reconciliation.
 - **Runbook** — [docs/07](07_month_end_incident_runbook.md) for triage + comms cadence,
   [docs/08](08_postmortem_template.md) for the mandatory reliability upgrade after an incident.

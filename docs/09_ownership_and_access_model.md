@@ -74,7 +74,7 @@ prose.
 |---|---|---|
 | `PUBLIC` | OFAC / OpenSanctions list fields | No masking; public by nature |
 | `SIMULATED-PII` | `silver.account.synthetic_holder_name`, `synthetic_dob`, `synthetic_country`; `silver.entity_address.address_line` | Column mask — cleartext only for DE / admins, redacted otherwise |
-| `INTERNAL` | `gold.entity_risk_profile`, `gold.prioritized_alert_queue` scores/rationale | Gold-layer governed access; suppressed alerts row-filtered from business consumers |
+| `INTERNAL` | `gold.entity_risk_profile`(`_history`), `gold.prioritized_alert_queue`(`_history`), `gold.alert_disposition` scores/rationale | Gold-layer governed access; suppressed alerts row-filtered from business consumers |
 
 ## Column masking
 
@@ -90,11 +90,20 @@ masking/hashing should be applied before a broader technical audience gets acces
 
 ## Row filtering
 
-`gold.prioritized_alert_queue` carries a row filter (`governance.alert_visibility`):
-reviewers and engineers (`aml_analytics_engineers` / `aml_data_engineers` /
-`aml_platform_admins`) see every alert including `suppressed` ones; BI and business consumers
-never see suppressed alerts, so a dismissed false-positive can't resurface in a general
-dashboard.
+`gold.prioritized_alert_queue` and `gold.prioritized_alert_queue_history` both carry the same
+row filter (`governance.alert_visibility`): reviewers and engineers
+(`aml_analytics_engineers` / `aml_data_engineers` / `aml_platform_admins`) see every alert
+including `suppressed` ones; BI and business consumers never see suppressed alerts, so a
+dismissed false-positive can't resurface in a general dashboard — including by querying the
+history table instead of the current-state one.
+
+## Reviewer disposition writes
+
+`status` on `prioritized_alert_queue` is sourced from `gold.alert_disposition`, an insert-only
+table a reviewer writes to via `src/aml_lakehouse/common/alert_disposition.py` rather than
+`UPDATE`ing the queue directly (which `CREATE OR REPLACE` would wipe on the next rebuild
+anyway). Write access to `alert_disposition` is restricted to `aml_analytics_engineers` /
+`aml_data_engineers` — the same principals who own Gold — not the broader Gold read audience.
 
 ## Applying it
 

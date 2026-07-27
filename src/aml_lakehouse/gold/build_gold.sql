@@ -247,6 +247,38 @@ SELECT
   ) AS top_contributing_factors
 FROM final_scored;
 
+-- Append-only history of entity_risk_profile. entity_risk_profile itself is CREATE OR REPLACE
+-- (see docs/12_performance_and_layout.md for why: liquid clustering needs an inline CTAS), so a
+-- rerun on a later as_of_date would otherwise silently erase every prior date's scores -- exactly
+-- the "what was this entity's score last month" audit question docs/01 requires an answer to.
+-- Created IF NOT EXISTS + appended (never CREATE OR REPLACE) so history accumulates across runs.
+CREATE TABLE IF NOT EXISTS {catalog}.gold.entity_risk_profile_history (
+  LIKE {catalog}.gold.entity_risk_profile
+);
+
+-- Guarded by NOT EXISTS on (entity_id, as_of_date) so re-running the same as_of_date's batch
+-- (e.g. a retry) appends once, not once per attempt.
+INSERT INTO {catalog}.gold.entity_risk_profile_history
+SELECT p.*
+FROM {catalog}.gold.entity_risk_profile p
+WHERE NOT EXISTS (
+  SELECT 1 FROM {catalog}.gold.entity_risk_profile_history h
+  WHERE h.entity_id = p.entity_id AND h.as_of_date = p.as_of_date
+);
+
+
+-- Reviewer dispositions, kept OUT of the CREATE OR REPLACE queue table itself. A reviewer's
+-- 'reviewed'/'suppressed' call must survive the next Gold rebuild, so it can't live as a plain
+-- column on a table that gets replaced wholesale every run -- see docs/03_schema_contracts.md.
+-- Insert-only: a new disposition is a new row, never an UPDATE, so "who decided what and when"
+-- is itself an audit trail. Created IF NOT EXISTS so a rebuild never wipes reviewer history.
+CREATE TABLE IF NOT EXISTS {catalog}.gold.alert_disposition (
+  alert_id STRING,
+  status STRING,
+  reviewed_by STRING,
+  reviewed_at TIMESTAMP,
+  note STRING
+);
 
 -- Clustered by the columns the queue is filtered by (status drives the row filter in
 -- resources/ddl/01_ownership_and_access.sql; escalation_reason drives triage views).
@@ -262,21 +294,58 @@ WITH alert_rules AS (
   SELECT MAX(CASE WHEN rule_key = 'alert_min_score' THEN rule_value END) AS alert_min_score
   FROM {catalog}.gold.scoring_rule
   WHERE is_current
+),
+scored_alerts AS (
+  SELECT
+    sha2(concat(entity_id, '-', CAST(as_of_date AS STRING)), 256) AS alert_id,
+    entity_id,
+    account_id,
+    composite_risk_score,
+    -- sanctions_hard_override: an exact watchlist match escalates regardless of behavioral
+    -- score, per the escalation-threshold assumption in docs/00_business_charter.md.
+    CASE WHEN best_band_rank = 3 THEN 'sanctions_hard_override' ELSE 'behavioral_threshold' END AS escalation_reason
+  FROM {catalog}.gold.entity_risk_profile
+  CROSS JOIN alert_rules
+  WHERE best_band_rank = 3 OR composite_risk_score >= alert_min_score
+),
+-- latest disposition per alert_id -- insert-only history, so "current" is just the newest row.
+latest_disposition AS (
+  SELECT alert_id, status, reviewed_by, reviewed_at
+  FROM (
+    SELECT
+      alert_id, status, reviewed_by, reviewed_at,
+      ROW_NUMBER() OVER (PARTITION BY alert_id ORDER BY reviewed_at DESC) AS rn
+    FROM {catalog}.gold.alert_disposition
+  )
+  WHERE rn = 1
 )
 SELECT
-  sha2(concat(entity_id, '-', CAST(as_of_date AS STRING)), 256) AS alert_id,
-  entity_id,
-  account_id,
-  RANK() OVER (ORDER BY composite_risk_score DESC) AS priority_rank,
-  composite_risk_score,
-  -- sanctions_hard_override: an exact watchlist match escalates regardless of behavioral
-  -- score, per the escalation-threshold assumption in docs/00_business_charter.md.
-  CASE WHEN best_band_rank = 3 THEN 'sanctions_hard_override' ELSE 'behavioral_threshold' END AS escalation_reason,
-  'new' AS status,
+  a.alert_id,
+  a.entity_id,
+  a.account_id,
+  RANK() OVER (ORDER BY a.composite_risk_score DESC) AS priority_rank,
+  a.composite_risk_score,
+  a.escalation_reason,
+  COALESCE(d.status, 'new') AS status,
   current_timestamp() AS generated_at
-FROM {catalog}.gold.entity_risk_profile
-CROSS JOIN alert_rules
-WHERE best_band_rank = 3 OR composite_risk_score >= alert_min_score;
+FROM scored_alerts a
+LEFT JOIN latest_disposition d ON a.alert_id = d.alert_id;
+
+-- Append-only history of prioritized_alert_queue, same rationale as entity_risk_profile_history
+-- above: the queue is CREATE OR REPLACE, so without this a rebuild silently loses the record of
+-- which alerts were queued (and at what rank/status) on a prior day. One row per (alert_id,
+-- generated_date) -- an alert re-scored on a later day gets a new history row, not an overwrite.
+CREATE TABLE IF NOT EXISTS {catalog}.gold.prioritized_alert_queue_history (
+  LIKE {catalog}.gold.prioritized_alert_queue
+);
+
+INSERT INTO {catalog}.gold.prioritized_alert_queue_history
+SELECT q.*
+FROM {catalog}.gold.prioritized_alert_queue q
+WHERE NOT EXISTS (
+  SELECT 1 FROM {catalog}.gold.prioritized_alert_queue_history h
+  WHERE h.alert_id = q.alert_id AND CAST(h.generated_at AS DATE) = CAST(q.generated_at AS DATE)
+);
 
 
 CREATE OR REPLACE TABLE {catalog}.gold.watchlist_match_summary AS

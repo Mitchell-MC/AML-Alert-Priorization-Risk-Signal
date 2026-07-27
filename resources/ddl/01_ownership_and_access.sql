@@ -164,6 +164,22 @@ CREATE OR REPLACE FUNCTION {catalog}.governance.alert_visibility(status STRING)
 ALTER TABLE {catalog}.gold.prioritized_alert_queue
   SET ROW FILTER {catalog}.governance.alert_visibility ON (status);
 
+-- prioritized_alert_queue_history carries the same status column and the same suppressed-alert
+-- exposure risk, so it gets the identical row filter -- a dismissed false-positive must not
+-- resurface to business consumers just because it's queried through the history table instead
+-- of the current-state one.
+ALTER TABLE {catalog}.gold.prioritized_alert_queue_history
+  SET ROW FILTER {catalog}.governance.alert_visibility ON (status);
+
+-- alert_disposition is the reviewer-write surface behind prioritized_alert_queue.status (see
+-- docs/03_schema_contracts.md). Writes are restricted to the same principals who own Gold /
+-- perform reviews; broader Gold SELECT access already covers read visibility via the schema
+-- grant above, so only the narrower MODIFY needs restating here.
+GRANT SELECT, MODIFY ON TABLE {catalog}.gold.alert_disposition TO `aml_analytics_engineers`;
+GRANT SELECT, MODIFY ON TABLE {catalog}.gold.alert_disposition TO `aml_data_engineers`;
+REVOKE MODIFY ON TABLE {catalog}.gold.alert_disposition FROM `aml_bi_analysts`;
+REVOKE MODIFY ON TABLE {catalog}.gold.alert_disposition FROM `aml_business_users`;
+
 -- ---------------------------------------------------------------------------
 -- 8. Classification tags (docs/01). Unity Catalog tags make the classification
 --    queryable/discoverable rather than living only in a doc. Applied at table and
@@ -185,5 +201,14 @@ ALTER TABLE {catalog}.silver.entity_address
 ALTER TABLE {catalog}.gold.entity_risk_profile
   SET TAGS ('data_classification' = 'INTERNAL');
 
+ALTER TABLE {catalog}.gold.entity_risk_profile_history
+  SET TAGS ('data_classification' = 'INTERNAL');
+
 ALTER TABLE {catalog}.gold.prioritized_alert_queue
+  SET TAGS ('data_classification' = 'INTERNAL');
+
+ALTER TABLE {catalog}.gold.prioritized_alert_queue_history
+  SET TAGS ('data_classification' = 'INTERNAL');
+
+ALTER TABLE {catalog}.gold.alert_disposition
   SET TAGS ('data_classification' = 'INTERNAL');
