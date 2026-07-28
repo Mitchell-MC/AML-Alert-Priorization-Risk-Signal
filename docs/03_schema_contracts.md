@@ -90,6 +90,16 @@ linkage is disclosed.
 requirement in `docs/01_nonfunctional_requirements.md` — every ranked alert must show its
 work, not just its score.
 
+A subset of the rules above are enforced against real data at runtime, not just documented
+here: `src/aml_lakehouse/common/expectations.py` provides generic, parameterized checks
+(`not_null`, `unique`, `accepted_values`, `range_check`, `relationship`) in the spirit of
+dbt's generic tests, and `gold/build_gold_with_gate.py` runs them against
+`gold.entity_risk_profile.score_band`, `gold.prioritized_alert_queue.alert_id/status/
+escalation_reason`, and the `prioritized_alert_queue.account_id → silver.account.account_id`
+relationship after every Gold rebuild. Extend that check list (rather than only editing this
+table) when adding a new column-level rule, so the contract and the enforcement can't
+silently drift apart.
+
 ## Reference / config tables (SCD2, table-driven design)
 
 Policy and mapping logic lives in these SCD2 tables, not hard-coded in the transforms, so a

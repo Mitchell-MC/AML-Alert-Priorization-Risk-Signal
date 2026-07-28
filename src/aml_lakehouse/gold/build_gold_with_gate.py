@@ -7,6 +7,13 @@ from time import perf_counter
 from pyspark.sql import SparkSession
 
 from aml_lakehouse.common.config import resolve_env
+from aml_lakehouse.common.expectations import (
+    accepted_values,
+    not_null,
+    relationship,
+    run_contract,
+    unique,
+)
 from aml_lakehouse.common.ingestion_metadata import new_batch_id
 from aml_lakehouse.common.ops_control import record_batch
 from aml_lakehouse.common.risk_guardrails import DataContractError
@@ -15,6 +22,38 @@ from aml_lakehouse.common.upstream_registry import get_dependency_metadata
 
 SOURCE_TARGET_ROW_RATIO_FLOOR = 0.50
 SOURCE_TARGET_ROW_RATIO_CEIL = 1.50
+
+
+def _contract_checks(spark: SparkSession, catalog: str) -> None:
+    """Enforce the column-level rules from docs/03_schema_contracts.md against real data.
+
+    Args:
+        spark (SparkSession): Active Spark session.
+        catalog (str): Unity Catalog catalog for this target environment.
+
+    Raises:
+        DataContractError: On the first violated rule (see aml_lakehouse.common.expectations).
+    """
+    run_contract(
+        spark,
+        f"{catalog}.gold.entity_risk_profile",
+        [accepted_values("score_band", ["high", "medium", "low"])],
+    )
+    run_contract(
+        spark,
+        f"{catalog}.gold.prioritized_alert_queue",
+        [
+            not_null("alert_id"),
+            unique("alert_id"),
+            accepted_values("status", ["new", "reviewed", "suppressed"]),
+            accepted_values(
+                "escalation_reason", ["sanctions_hard_override", "behavioral_threshold"]
+            ),
+            relationship(
+                "account_id", ref_table=f"{catalog}.silver.account", ref_column="account_id"
+            ),
+        ],
+    )
 
 
 def _reconciliation_checks(spark: SparkSession, catalog: str) -> dict[str, float]:
@@ -47,6 +86,7 @@ def run(spark: SparkSession, environment: str) -> dict[str, float]:
     sql_path = Path(__file__).with_name("build_gold.sql")
     run_sql_script(spark, str(sql_path), catalog=env.catalog)
 
+    _contract_checks(spark, env.catalog)
     metrics = _reconciliation_checks(spark, env.catalog)
     dep = get_dependency_metadata("gold_month_end_publish")
     batch_id = new_batch_id()
