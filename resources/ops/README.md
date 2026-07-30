@@ -18,8 +18,10 @@ Use them during month-end or incident response to quickly answer:
 - `owner_handoff_queue.sql`: ownership/routing queue for escalations
 - `cost_sla_scorecard.sql`: SLA and estimated cost scorecard over recent runs
 - `schema_drift_breaking_changes.sql`: latest breaking schema-drift events
-- `day_over_day_variance.sql`: attributes "why did today's number change?" by diffing the
-  current Gold version against the prior one via Delta time travel (see
+- `day_over_day_variance.sql`: attributes "why did today's number change?" by diffing two
+  runs' worth of `gold.entity_risk_profile_history` / `gold.prioritized_alert_queue_history`
+  (append-only, durable across rebuilds — Delta time travel is documented in the file as a
+  fallback only, since VACUUM/retention can expire a prior version out from under you) (see
   [docs/11_failure_scenario_map.md](../../docs/11_failure_scenario_map.md))
 
 ## Usage

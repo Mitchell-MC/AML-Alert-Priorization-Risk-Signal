@@ -16,6 +16,12 @@ trust, cost, or compliance.
 - Critical jobs validate required input columns and non-empty source datasets.
 - Contract violations raise `DataContractError` from
   `src/aml_lakehouse/common/risk_guardrails.py`.
+- Generic, dbt-generic-test-style checks (`not_null`, `unique`, `accepted_values`,
+  `range_check`, `relationship`) live as pure, unit-testable SQL builders in
+  `src/aml_lakehouse/common/expectations.py` and run against `gold.entity_risk_profile` and
+  `gold.prioritized_alert_queue` after every Gold rebuild (`gold/build_gold_with_gate.py`), so
+  the column-level rules in `docs/03_schema_contracts.md` are enforced against live data, not
+  just documented.
 
 ## 3) Use Circuit Breakers for Data Quality
 

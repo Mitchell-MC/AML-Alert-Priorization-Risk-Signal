@@ -69,13 +69,25 @@ groups to grant to).
   explainable and reproducible).
 - Ingestion metadata (source, timestamp, schema version, row/file counts) is immutable and
   queryable per batch, forming the audit trail for "what data was known at decision time."
+- `gold.entity_risk_profile` and `gold.prioritized_alert_queue` are `CREATE OR REPLACE`
+  snapshots, so their append-only `_history` counterparts
+  (`gold.entity_risk_profile_history`, `gold.prioritized_alert_queue_history`) preserve every
+  prior `as_of_date` / `generated_at` run instead of letting a rebuild silently erase it —
+  this is what makes "why did this alert's score change since last week" answerable at all.
+- Reviewer decisions on an alert (`reviewed` / `suppressed`) are insert-only rows in
+  `gold.alert_disposition`, never an `UPDATE` on the queue itself, so a human's review call
+  survives the next Gold rebuild instead of being reset back to `'new'`.
 
 ## Enforced controls
 
 - **Fail-loud coding standard**: broad or silent exception handlers are blocked in CI via
   `scripts/check_ai_risk_patterns.py`.
 - **Data contract guardrails**: required-column/non-empty/invalid-ratio checks are enforced
-  with `src/aml_lakehouse/common/risk_guardrails.py`.
+  with `src/aml_lakehouse/common/risk_guardrails.py`; generic, parameterized column-level
+  checks (`not_null`, `unique`, `accepted_values`, `range_check`, `relationship`) in
+  `src/aml_lakehouse/common/expectations.py` run against live Gold tables on every rebuild via
+  `gold/build_gold_with_gate.py`, enforcing the rules in
+  [docs/03_schema_contracts.md](03_schema_contracts.md) instead of leaving them documentation-only.
 - **Structured incident telemetry**: batch and streaming jobs emit JSON logs with row counts,
   lag, and quality metrics.
 - **Governance-as-code checks**: CI runs `scripts/check_governance_policies.py` to catch

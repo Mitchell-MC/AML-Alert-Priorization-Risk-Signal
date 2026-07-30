@@ -135,3 +135,37 @@ out plainly what an enterprise account would do differently — a stated deviati
 gap glossed over.
 
 - [docs/02](02_environment_and_branching.md) auth/access.
+
+## ADR-12 — Append-only Gold history and disposition tables instead of relying on time travel
+
+**The business needed** an AML-audit-grade trail of what a Gold rebuild scored and what a
+reviewer decided, **so we chose** dedicated append-only `_history` tables
+(`gold.entity_risk_profile_history`, `gold.prioritized_alert_queue_history`) plus an
+insert-only `gold.alert_disposition` table **because** `entity_risk_profile` and
+`prioritized_alert_queue` are `CREATE OR REPLACE` snapshots — a rerun silently erased prior
+`as_of_date` scores and reset every alert's `status` back to `'new'`, and Delta time travel
+alone is a fragile substitute (VACUUM or a retention policy can expire the prior version out
+from under you). **The trade-off was** extra storage and an explicit append/merge step on
+every Gold build, **and we mitigated it by** keeping the write path narrow — `build_gold.sql`
+appends to history and left-joins the latest disposition per `alert_id`, so the "current
+state" query experience is unchanged for downstream consumers.
+
+- [docs/01](01_nonfunctional_requirements.md) audit requirements;
+  [docs/03](03_schema_contracts.md) history/disposition contracts;
+  `resources/ops/day_over_day_variance.sql`.
+
+## ADR-13 — Generic, parameterized contract checks instead of per-table SQL assertions
+
+**The business needed** the column-level rules already written down in
+`docs/03_schema_contracts.md` (accepted values, uniqueness, not-null, referential integrity)
+to actually be enforced against live data, **so we chose** a small set of generic,
+parameterized check builders (`not_null`, `unique`, `accepted_values`, `range_check`,
+`relationship` in `src/aml_lakehouse/common/expectations.py`, dbt-generic-test-style) **because**
+one reusable, unit-tested module scales to new tables/columns without hand-writing a bespoke
+assertion query each time. **The trade-off was** less flexibility than a fully custom
+assertion per table, **and we mitigated it by** keeping the builders composable pure SQL
+generators, so an edge case that doesn't fit the generic set can still drop down to a
+one-off query in `gold/build_gold_with_gate.py` without abandoning the framework.
+
+- [docs/06](06_pipeline_survival_framework.md) §2; [docs/01](01_nonfunctional_requirements.md)
+  enforced controls.

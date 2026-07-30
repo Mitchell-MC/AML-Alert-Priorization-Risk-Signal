@@ -28,7 +28,11 @@ per-layer responsibilities in [docs/05_architecture.md](docs/05_architecture.md)
   transaction modeling.
 - **Gold** — explainable, additive rule-based risk scoring and a prioritized alert queue,
   plus an operational-health control layer for streaming freshness and silent-failure
-  detection.
+  detection. Append-only audit history (`gold.entity_risk_profile_history`,
+  `gold.prioritized_alert_queue_history`) and insert-only reviewer disposition tracking
+  (`gold.alert_disposition`) survive every rebuild, and generic data-contract checks
+  (not-null/unique/accepted-values/relationship) gate every Gold rebuild before it's
+  considered published.
 - **Serving** — a Power BI project (`bi/AML_Dashboard.pbip`) for investigator triage,
   sanctions/PEP exposure, and pipeline ops health.
 - **Reliability (cross-cutting)** — a fail-loud survival framework spanning every layer:
@@ -111,7 +115,8 @@ for both assumptions in full.
 6. **Streaming**: `databricks bundle run streaming_validation_run --target dev` (drips
    AMLSim transactions through a paced producer into the Structured Streaming consumer)
 7. **Month-end critical path**: `databricks bundle run month_end_critical_path --target dev`
-  (runs guarded publish flow with reconciliation gate checks)
+  (runs guarded publish flow with data-contract checks — accepted values, uniqueness,
+  referential integrity — plus reconciliation gate checks)
 8. **Dead-letter replay (as needed)**: `databricks bundle run replay_txn_dead_letter --target dev`
 8b. **Table maintenance** (scheduled daily; run on demand with
    `databricks bundle run table_maintenance --target dev`) — compaction/clustering/VACUUM,
@@ -143,6 +148,16 @@ for both assumptions in full.
 - [x] Governance-as-code CI gates — AI-risk, governance-policy, and contract-risk check
       scripts wired into the workflow and passing, plus an operational SQL query pack
       ([resources/ops/README.md](resources/ops/README.md)) and month-end incident runbook
+- [x] Gold-layer audit history and reviewer disposition tracking — append-only
+      `entity_risk_profile_history` / `prioritized_alert_queue_history` tables so a rebuild no
+      longer silently erases prior scores, plus insert-only `gold.alert_disposition` so a
+      reviewer's reviewed/suppressed call survives the next rebuild instead of being reset to
+      `'new'`
+- [x] Generic data-contract checks wired into the Gold gate — dbt-generic-test-style
+      not_null/unique/accepted_values/range_check/relationship builders
+      (`src/aml_lakehouse/common/expectations.py`) run against live `gold` tables after every
+      rebuild, enforcing the rules in
+      [docs/03_schema_contracts.md](docs/03_schema_contracts.md) against real data
 - [x] Power BI semantic model — 5 tables wired to real `aml_dev` schema, 13 DAX measures,
       confirmed loading correctly in real Power BI Desktop (all tables visible, structure
       intact) after fixing a missing `version.json` found via an actual open attempt
