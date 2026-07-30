@@ -26,7 +26,7 @@ class IngestionMetadata:
     schema_version: str
 
     @classmethod
-    def create(cls, source_file: str, schema_version: str) -> "IngestionMetadata":
+    def create(cls, source_file: str, schema_version: str) -> IngestionMetadata:
         return cls(
             batch_id=new_batch_id(),
             ingested_at=datetime.now(timezone.utc),

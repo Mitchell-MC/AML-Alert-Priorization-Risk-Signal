@@ -28,7 +28,7 @@ def close_current_sql(table: str, key_predicate: str, effective_date: str) -> st
     )
 
 
-def insert_new_sql(table: str, business_columns: "OrderedDict[str, str]", effective_date: str) -> str:
+def insert_new_sql(table: str, business_columns: OrderedDict[str, str], effective_date: str) -> str:
     """Open a new currently-effective version from effective_date with an open-ended valid_to."""
     columns = list(business_columns.keys()) + list(SCD2_COLUMNS)
     values = list(business_columns.values()) + [f"DATE'{effective_date}'", "CAST(NULL AS DATE)", "true"]
@@ -39,7 +39,7 @@ def apply_scd2_change(
     spark,
     table: str,
     key_predicate: str,
-    business_columns: "OrderedDict[str, str]",
+    business_columns: OrderedDict[str, str],
     effective_date: str,
 ) -> None:
     """Close the current version and open a new one, in that order (Delta ACID per-statement).

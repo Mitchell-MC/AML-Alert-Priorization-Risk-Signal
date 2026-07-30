@@ -107,7 +107,7 @@ def _split_valid_invalid(df: DataFrame) -> tuple[DataFrame, DataFrame]:
     return df.filter(is_valid), df.filter(~is_valid | F.col("ent_num").isNull())
 
 
-def _write_bronze(df: DataFrame, target_table: str, metadata: "IngestionMetadata") -> DataFrame:
+def _write_bronze(df: DataFrame, target_table: str, metadata: IngestionMetadata) -> DataFrame:
     stamped = df
     for col_name, value in metadata.as_columns().items():
         stamped = stamped.withColumn(col_name, F.lit(value))
@@ -115,7 +115,7 @@ def _write_bronze(df: DataFrame, target_table: str, metadata: "IngestionMetadata
     return stamped
 
 
-def _write_dead_letter(df: DataFrame, target_table: str, metadata: "IngestionMetadata", reason: str) -> None:
+def _write_dead_letter(df: DataFrame, target_table: str, metadata: IngestionMetadata, reason: str) -> None:
     if df.isEmpty():
         return
     stamped = df.withColumn("_error_reason", F.lit(reason))

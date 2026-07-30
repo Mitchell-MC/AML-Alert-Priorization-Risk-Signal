@@ -1,8 +1,8 @@
 """Schema snapshot and drift detection helpers."""
 from __future__ import annotations
 
-from hashlib import sha256
 import json
+from hashlib import sha256
 
 
 def normalize_schema(fields: list[dict[str, str]]) -> list[dict[str, str]]:

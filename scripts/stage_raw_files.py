@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from aml_lakehouse.common.download import download_to_path  # noqa: E402
+from aml_lakehouse.common.download import download_to_path
 
 OFAC_BASE_URL = "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports"
 OFAC_FILES = ("SDN.CSV", "ALT.CSV", "ADD.CSV", "SDN_COMMENTS.CSV")
@@ -66,7 +66,7 @@ def stage_amlsim(tmp_dir: Path, catalog: str, profile: str | None) -> None:
     tarball_path = tmp_dir / "amlsim.tgz"
     download_to_path(AMLSIM_URL, str(tarball_path))
     with tarfile.open(tarball_path, "r:gz") as tar:
-        tar.extractall(path=tmp_dir)  # noqa: S202 -- trusted, pinned source URL
+        tar.extractall(path=tmp_dir)
     dataset_dir = tmp_dir / "20K_fanin200cycle200"
     for filename in ("nodes.csv", "transactions.csv"):
         _fs_cp(dataset_dir / filename, f"/Volumes/{catalog}/bronze/raw_files/amlsim/{filename}", profile)

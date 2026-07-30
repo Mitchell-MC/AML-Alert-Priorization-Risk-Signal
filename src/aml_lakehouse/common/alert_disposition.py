@@ -42,10 +42,14 @@ def record_disposition_sql(
     """
     if status not in _VALID_STATUSES:
         raise ValueError(f"unknown status {status!r}, expected one of {_VALID_STATUSES}")
-    note_sql = "NULL" if note is None else f"'{note}'"
+    alert_id_sql = alert_id.replace("'", "''")
+    reviewed_by_sql = reviewed_by.replace("'", "''")
+    reviewed_at_sql = reviewed_at.replace("'", "''")
+    note_sql = "NULL" if note is None else "'{}'".format(note.replace("'", "''"))
     return (
         f"INSERT INTO {table} (alert_id, status, reviewed_by, reviewed_at, note) "
-        f"VALUES ('{alert_id}', '{status}', '{reviewed_by}', TIMESTAMP'{reviewed_at}', {note_sql})"
+        f"VALUES ('{alert_id_sql}', '{status}', '{reviewed_by_sql}', "
+        f"TIMESTAMP'{reviewed_at_sql}', {note_sql})"
     )
 
 

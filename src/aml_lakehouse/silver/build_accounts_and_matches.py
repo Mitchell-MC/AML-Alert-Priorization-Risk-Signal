@@ -36,7 +36,11 @@ from pyspark.sql.types import BooleanType, DoubleType, StringType, StructField, 
 from aml_lakehouse.common.config import resolve_env
 from aml_lakehouse.common.ingestion_metadata import new_batch_id
 from aml_lakehouse.common.ops_control import record_batch
-from aml_lakehouse.common.risk_guardrails import DataContractError, require_columns, require_non_empty
+from aml_lakehouse.common.risk_guardrails import (
+    DataContractError,
+    require_columns,
+    require_non_empty,
+)
 from aml_lakehouse.common.schema_drift import record_schema_snapshot, table_fields
 from aml_lakehouse.common.structured_logging import get_logger, log_event
 from aml_lakehouse.common.upstream_registry import get_dependency_metadata

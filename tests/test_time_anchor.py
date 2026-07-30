@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 
 from aml_lakehouse.common.time_anchor import (
-    SYNTHETIC_TIME_ANCHOR,
     STEP_INTERVAL,
+    SYNTHETIC_TIME_ANCHOR,
     step_to_epoch_seconds,
     step_to_event_time,
     step_to_event_time_expr,

@@ -11,8 +11,8 @@ section for why this must be disclosed plainly rather than presented as real KYC
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 FIRST_NAMES = (
     "James", "Maria", "Wei", "Fatima", "Carlos", "Aisha", "David", "Yuki", "Mohammed", "Elena",

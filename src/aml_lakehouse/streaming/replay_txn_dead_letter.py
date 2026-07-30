@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 from aml_lakehouse.common.config import resolve_env
 
